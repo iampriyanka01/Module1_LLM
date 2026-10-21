@@ -219,8 +219,11 @@ def friendly_error(e: Exception, model: str | None = None) -> str:
 # Generation helpers
 # ---------------------------------------------------------------------------
 def make_config(system: str | None = None, temperature=None, top_p=None, top_k=None,
-                max_tokens=None, tools=None, json_mode: bool = False, **extra):
+                max_tokens=None, tools=None, json_mode: bool = False, model=None, **extra):
     kwargs = {}
+    # Gemini 3.x: sampling params are left at defaults (Google recommends it; lite may reject them)
+    if (model or "").startswith("gemini-3"):
+        temperature = top_p = top_k = None
     if system:
         kwargs["system_instruction"] = system
     if temperature is not None:
@@ -258,7 +261,7 @@ def generate(prompt, *, system=None, temperature=None, top_p=None, top_k=None,
              max_tokens=None, model=None, json_mode=False, retry=True):
     """Single generate_content call. Returns (text, raw_response, seconds)."""
     client = get_client()
-    cfg = make_config(system, temperature, top_p, top_k, max_tokens, json_mode=json_mode)
+    cfg = make_config(system, temperature, top_p, top_k, max_tokens, json_mode=json_mode, model=model or get_model())
     t0 = time.perf_counter()
     call = lambda: client.models.generate_content(model=model or get_model(), contents=prompt, config=cfg)
     try:
@@ -297,7 +300,7 @@ def generate_many(prompts, *, system=None, temperature=None, max_tokens=None, mo
     from concurrent.futures import ThreadPoolExecutor
 
     client, mdl = get_client(), model or get_model()
-    cfg = make_config(system, temperature, max_tokens=max_tokens, json_mode=json_mode)
+    cfg = make_config(system, temperature, max_tokens=max_tokens, json_mode=json_mode, model=mdl)
 
     def one(p):
         t0 = time.perf_counter()
@@ -318,7 +321,7 @@ def generate_many(prompts, *, system=None, temperature=None, max_tokens=None, mo
 def stream(prompt, *, system=None, temperature=None, model=None):
     """Yield text chunks as they arrive (generate_content_stream)."""
     client = get_client()
-    cfg = make_config(system, temperature)
+    cfg = make_config(system, temperature, model=model or get_model())
     for chunk in client.models.generate_content_stream(model=model or get_model(), contents=prompt, config=cfg):
         if getattr(chunk, "text", None):
             yield chunk.text

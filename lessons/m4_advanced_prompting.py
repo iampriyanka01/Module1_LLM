@@ -21,7 +21,7 @@ page_header(
 )
 
 tabs = st.tabs(["Why basic prompting fails", "Chain-of-Thought", "Few-shot CoT & bias", "Auto-CoT",
-                "🗳️ Self-Consistency", "🌳 Tree-of-Thought", "Which technique?", "🧾 Key takeaways", "✅ Knowledge check"])
+                "🗳️ Self-Consistency", "🌳 Tree-of-Thought", "🔧 ReAct", "Which technique?", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     analogy("First you tell an intern “just do this”, then you show examples, then you ask them to think like an expert. "
@@ -79,6 +79,11 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Few-shot CoT — teach by demonstration")
     show_dg("m4:2")
+    analogy("Show an intern a couple of finished reports (with the reasoning), then ask for a new one. They copy the "
+            "thinking pattern instead of guessing.", title="Learning by watching")
+    st.markdown("Few-shot CoT = give **one or more worked examples that include the reasoning**, then the new question. "
+                "The model continues the pattern: it writes `Reasoning:` and then `Job Title:`.")
+    st.markdown("##### The prompt (everything the model sees)")
     st.code("""You are an intelligent HR assistant. Recommend the best-fit job title.
 Format:  Resume: <text>  Reasoning: <why>  Job Title: <prediction>
 
@@ -92,59 +97,149 @@ Job Title: Frontend Engineer
 
 Resume: Hugging Face Transformers, QA pipelines, spaCy entity recognition.
 Reasoning:""", language="text")
-    st.markdown("**Limitations:** manual effort · good examples are hard to find · **examples can bias the model** · doesn't scale "
-                "to thousands of varied tasks (e.g. categorising 10,000 invoices where “AI API usage billing” never appeared in examples).")
+    st.markdown("##### ✅ What the model writes next (typical answer)")
+    st.code("""Reasoning: The candidate works with NLP tooling (Hugging Face Transformers, spaCy) and has built
+question-answering pipelines, which are core tasks of language-model / NLP engineering roles.
+Job Title: NLP Engineer""", language="text")
+    st.caption("Notice the model copied the *format* of the examples (Reasoning → Job Title) and the *style* of the reasoning "
+               "(skills → role). Neither example said 'NLP' — it generalised from the pattern. "
+               "Typical answer shown here; the live button below gives the real output.")
+
+    def _hr():
+        p = ("You are an intelligent HR assistant. Recommend the best-fit job title.\n"
+             "Format: Resume / Reasoning / Job Title\n\n"
+             "Resume: Python, NumPy, Matplotlib dashboards, EDA in finance.\n"
+             "Reasoning: Data analysis + Python + visualisation tools used in analytics roles.\nJob Title: Data Analyst\n\n"
+             "Resume: React, Node.js, REST APIs, led frontend redesign for a SaaS product.\n"
+             "Reasoning: Specialises in frontend/full-stack with modern web tech.\nJob Title: Frontend Engineer\n\n"
+             "Resume: Hugging Face Transformers, QA pipelines, spaCy entity recognition.\nReasoning:")
+        return generate(p)[0]
+
+    hr = run_live("▶ Run this prompt live", _hr, key="m4_hr")
+    if hr:
+        with st.container(border=True):
+            st.caption("Live model output (continues after 'Reasoning:')")
+            st.markdown("**Reasoning:** " + hr.strip())
+
+    st.markdown("**Limitations:** manual effort · good examples are hard to find · **examples can bias the model** · "
+                "doesn't scale to thousands of varied tasks (e.g. categorising 10,000 invoices where “AI API usage "
+                "billing” never appeared in examples).")
+
     st.markdown("#### 🟢 Experiment: do examples bias the answer?")
-    st.caption("Same new case, two prompts. The few-shot one only shows Money laundering / Loan stacking examples; the "
-               "other offers more options including *Structuring*.")
-    with_fs = """We are analyzing cases to predict the fraud type.
-Example 1: Small withdrawals each under the reporting threshold, total significant. Options: Money laundering, Loan stacking, Identity theft. Reasoning: avoiding detection. Fraud Type: Money laundering.
-Example 2: Multiple accounts used to move funds before cash withdrawal. Options: Money laundering, Loan stacking, Identity theft. Reasoning: exploiting tracking. Fraud Type: Money laundering.
-Example 3: Multiple loans from different institutions, not repaid. Options: Money laundering, Loan stacking, Identity theft. Reasoning: loans without intent to repay. Fraud Type: Loan stacking.
-New case: A customer deposits large sums and immediately withdraws them in smaller amounts.
-Options: Money laundering, Loan stacking, Identity theft, Structuring, Fraudulent transfer.
-Give one line of reasoning, then 'Fraud Type: <answer>'."""
-    without_fs = """Predict the fraud type. Reason through the case logically and pick the most appropriate type.
-Case: A customer deposits large sums and immediately withdraws them in smaller amounts.
-Options: Money laundering, Loan stacking, Identity theft, Structuring, Fraudulent transfer.
-Give one line of reasoning, then 'Fraud Type: <answer>'."""
-    res = run_live("Run both", lambda: (generate(with_fs, temperature=0)[0], generate(without_fs, temperature=0)[0]), key="m4_bias")
+    st.markdown("Same new case — *a customer deposits large sums and immediately withdraws them in smaller amounts* — "
+                "asked **three ways**. The options now include **Structuring**, which is arguably the most precise label.")
+    FRAUD_Q = ("New case: A customer deposits large sums and immediately withdraws them in smaller amounts.\n"
+               "Options: Money laundering, Loan stacking, Identity theft, Structuring, Fraudulent transfer.\n"
+               "Give one line of reasoning, then 'Fraud Type: <answer>'.")
+    ex1 = "Example: Small withdrawals each under the reporting threshold, total significant.\nReasoning: avoiding detection.\nFraud Type: Money laundering."
+    ex2 = "Example: Multiple accounts used to move funds before cash withdrawal.\nReasoning: exploiting tracking.\nFraud Type: Money laundering."
+    ex3 = "Example: Multiple loans from different institutions, not repaid.\nReasoning: loans without intent to repay.\nFraud Type: Loan stacking."
+    p_zero = "Predict the fraud type. Reason through the case logically and pick the most appropriate type.\n" + FRAUD_Q
+    p_one = "Predict the fraud type. Here is one worked example:\n" + ex1 + "\n\n" + FRAUD_Q
+    p_few = "Predict the fraud type. Here are worked examples:\n" + "\n".join([ex1, ex2, ex3]) + "\n\n" + FRAUD_Q
+    VARIANTS = [
+        ("A · Zero-shot CoT (no examples)", p_zero,
+         "Reasoning: Depositing a large sum then withdrawing it in smaller amounts is designed to stay below reporting "
+         "thresholds, which matches the textbook definition of breaking money into smaller pieces.\n**Fraud Type: Structuring**",
+         "No examples → the model uses its own knowledge and picks the most *specific* label."),
+        ("B · One-shot CoT (1 example)", p_one,
+         "Reasoning: Like the example, the customer is breaking up money to avoid detection, so it matches money laundering.\n"
+         "**Fraud Type: Money laundering**",
+         "One example is enough to pull the answer towards its label and its wording ('avoid detection')."),
+        ("C · Few-shot CoT (3 examples, 2 of them 'Money laundering')", p_few,
+         "Reasoning: Based on the examples, small withdrawals to avoid detection resemble money laundering.\n"
+         "**Fraud Type: Money laundering**",
+         "The majority label in the examples dominates, and the model never even considers 'Structuring'."),
+    ]
+    st.markdown("###### ✅ Typical outputs (always shown — no API key needed)")
+    cols = st.columns(3)
+    for col, (title, pr, ans, why) in zip(cols, VARIANTS):
+        with col.container(border=True):
+            st.markdown(f"**{title}**")
+            st.caption("Full prompt sent to the model:")
+            st.code(pr, language="text", wrap_lines=True)
+            st.caption("Typical answer:")
+            st.markdown(ans)
+            st.caption(why)
+    st.info("**Lesson:** the more (and the more one-sided) your examples, the more the model copies them — even when a better "
+            "option exists. Use *balanced, diverse* examples, or keep the option list the same in every example.")
+    def _bias():
+        return [generate(p)[0] for _, p, _, _ in VARIANTS]
+
+    res = run_live("▶ Run all three live (3 model calls)", _bias, key="m4_bias3")
     if res:
-        c1, c2 = st.columns(2)
-        with c1.container(border=True):
-            st.caption("With few-shot CoT")
-            st.markdown(res[0])
-        with c2.container(border=True):
-            st.caption("Without examples")
-            st.markdown(res[1])
-        st.caption("If the answers differ, the examples steered the model toward the labels it had just seen.")
+        cols = st.columns(3)
+        for col, (title, _, _, _), out in zip(cols, VARIANTS, res):
+            with col.container(border=True):
+                st.caption(f"LIVE · {title}")
+                st.markdown(out)
+        st.caption("Live outputs can differ from the typical ones above — that variation is itself the point.")
 
 with tabs[3]:
     st.subheader("Auto-CoT — the model becomes its own tutor")
     show_dg("m4:3")
     analogy("A junior analyst warms up on 2–3 practice reports from past projects before touching the client's data, then "
             "applies the same structure to the real task.", title="Warm-up before the real match")
-    st.markdown("**Phase 1:** ask the model to *generate* a few similar problems and solve them step by step (not the target "
-                "question yet).  \n**Phase 2:** feed those self-made examples back as a few-shot context and ask the real question.")
-    st.caption("Difference from zero-shot CoT: in Phase 1 the model isn't answering your question — it's building its own reasoning context. It's a warm-up, not the test.")
+    st.markdown("**The problem it solves:** few-shot CoT needs *you* to hand-write good examples for every task. "
+                "Auto-CoT lets the **model write the examples itself**, then reuses them.")
+    st.markdown("##### The 2 phases at a glance")
+    c1, c2 = st.columns(2)
+    with c1.container(border=True):
+        st.markdown("**Phase 1 — Warm-up (model teaches itself)**")
+        st.markdown("You do **not** ask your real question. You ask: *“Make up 3 similar problems and solve each step by step.”*")
+    with c2.container(border=True):
+        st.markdown("**Phase 2 — Real task (model applies its playbook)**")
+        st.markdown("You paste the self-made examples into a new prompt as few-shot examples, then ask the **real** question.")
+    st.caption("Difference from zero-shot CoT: zero-shot answers your question straight away; Auto-CoT first builds its own "
+               "examples (warm-up), then answers (the test).")
+
+    st.markdown("##### ✅ Worked example (no API key needed): categorising invoices")
+    AUTO_P1 = ("Generate 3 varied example problems about categorising company invoices into expense types "
+               "(Travel, Meals, Office Supplies, Software, Utilities). For each: 'Item:', 2-step 'Reasoning:', 'Category:'.")
+    AUTO_EX = ("Item: Train ticket to Bangalore — ₹1,850\n"
+               "Reasoning: 1) Train tickets pay for moving a person between cities. 2) That is a transport cost.\n"
+               "Category: Travel\n\n"
+               "Item: Printer paper, 10 reams — ₹3,200\n"
+               "Reasoning: 1) Paper is a consumable used in the office. 2) It is a physical supply, not software or food.\n"
+               "Category: Office Supplies\n\n"
+               "Item: Zoom annual plan — ₹14,000\n"
+               "Reasoning: 1) Zoom is a subscription tool. 2) Recurring access to an application is a software cost.\n"
+               "Category: Software")
+    AUTO_TARGET = "Cloudflare annual billing — $240"
+    AUTO_ANS = ("Reasoning: 1) Cloudflare provides web hosting/security services billed as a subscription. "
+                "2) Paying yearly for an online service is a recurring software/cloud cost.\n**Category: Software**")
+    with st.container(border=True):
+        st.markdown("**① Phase 1 prompt** (no real item yet)")
+        st.code(AUTO_P1, language="text")
+        st.markdown("**② Model's self-generated examples** (these become the few-shot examples)")
+        st.code(AUTO_EX, language="text")
+        st.markdown("**③ Phase 2 prompt** = those examples + the real item")
+        st.code("Here are worked examples:\n" + AUTO_EX + "\n\nNow solve in exactly the same format:\nItem: " + AUTO_TARGET, language="text")
+        st.markdown("**④ Final answer** (same style as its own examples)")
+        st.success(AUTO_ANS)
+    st.caption("You wrote **zero** examples. “AI API usage billing” or any new expense type works the same way — just change the Phase 1 topic.")
+    st.warning("Real Auto-CoT (Zhang et al., 2022) also **clusters** a large question set and picks one representative per cluster, "
+               "so the self-made examples are diverse and not all the same kind. This demo shows the simplified two-phase idea from the notes.")
+
+    st.markdown("##### 🟢 Try it live with your own task")
     domain = st.text_input("Task type", "categorising company invoices into expense types (Travel, Meals, Office Supplies, Software, Utilities)")
-    target = st.text_input("Real item", "Cloudflare annual billing — $240")
+    target = st.text_input("Real item", AUTO_TARGET)
 
     def _auto():
         p1 = (f"Generate 3 varied example problems about {domain}. For each, write 'Item:', a short 'Reasoning:' "
               f"with 2 steps, and 'Category:'. Keep it compact.")
-        examples = generate(p1, temperature=0.7)[0]
+        examples = generate(p1)[0]
         p2 = f"Here are worked examples:\n{examples}\n\nNow solve in exactly the same format:\nItem: {target}"
-        return examples, generate(p2, temperature=0)[0]
+        return examples, generate(p2)[0]
 
-    res = run_live("Run Phase 1 → Phase 2", _auto, key="m4_auto")
+    res = run_live("▶ Run Phase 1 → Phase 2 (2 model calls)", _auto, key="m4_auto")
     if res:
         c1, c2 = st.columns(2)
         with c1.container(border=True):
-            st.caption("Phase 1 · self-generated examples")
+            st.caption("LIVE · Phase 1 · self-generated examples")
             st.markdown(res[0])
         with c2.container(border=True):
-            st.caption("Phase 2 · real item, same reasoning style")
+            st.caption("LIVE · Phase 2 · real item, same reasoning style")
             st.markdown(res[1])
 
 with tabs[4]:
@@ -167,7 +262,7 @@ with tabs[4]:
     question = st.text_area("Question", "When I was 6 my sister was half my age. Now I'm 70. How old is my sister?", key="m4_sc_q")
     c1, c2 = st.columns(2)
     n = c1.slider("Number of reasoning paths", 3, 9, 5, key="m4_sc_n")
-    temp = c2.slider("Temperature (diversity)", 0.3, 1.5, 1.0, 0.1, key="m4_sc_t")
+    temp = c2.slider("Temperature (diversity)", 0.3, 1.5, 1.0, 0.1, key="m4_sc_t", help="Ignored on Gemini 3.x models, which use their default sampling (still varied enough to show disagreement).")
     prompt = question + "\nLet's think step by step. End with a final line exactly like: Final answer: <answer>"
 
     def _sc():
@@ -226,7 +321,99 @@ digraph { rankdir=TB; node [shape=box style="rounded,filled" fontname="Helvetica
             st.markdown(res[1])
 
 with tabs[6]:
-    show_dg("m4:6", max_w=7.0, max_h=7.5)
+    st.subheader("ReAct — Reason + Act (think, use a tool, observe, repeat)")
+    show_dg("m4:6")
+    analogy("A detective doesn't solve the case from the armchair. They think (“who had the key?”), act (check the "
+            "records), read what they find, then think again.", title="Think → look it up → think again")
+    st.markdown("CoT only *thinks*. **ReAct** (Yao et al., 2022) lets the model also **act**: call a tool (search, calculator, "
+                "database), read the **Observation**, and reason again. This fixes the gap the notes mention — "
+                "CoT can be logical but **wrong because the model lacks the facts**.")
+    st.markdown("**The loop:** `Thought → Action → Observation → Thought → … → Final Answer`. "
+                "Your *code* runs the Action and pastes the Observation back; the model never executes anything itself.")
+
+    st.markdown("##### The ReAct prompt template")
+    REACT_SYS = """Answer the question using this loop. Available tools:
+  lookup[topic]  - returns a short fact
+  calc[expression] - evaluates arithmetic
+
+Use exactly this format, one step at a time:
+Thought: <what you need next>
+Action: <tool>[<input>]
+(then STOP and wait for the Observation)
+
+When you know the answer, write:
+Thought: I now know the answer
+Final Answer: <answer>"""
+    st.code(REACT_SYS, language="text")
+
+    st.markdown("##### Full prompt sent on the first step")
+    st.code(REACT_SYS + "\n\nQuestion: What is the population of Japan multiplied by 2?", language="text", wrap_lines=True)
+    st.caption("On each later step your code appends the model's Thought/Action and the tool's Observation to this same prompt and calls the model again.")
+    st.markdown("##### ✅ Worked trace (no key needed)")
+    st.code("""Question: What is the population of Japan multiplied by 2?
+
+Thought: I need Japan's population first.
+Action: lookup[population of Japan]
+Observation: About 124 million (2024).
+
+Thought: Now multiply by 2.
+Action: calc[124 * 2]
+Observation: 248
+
+Thought: I now know the answer
+Final Answer: About 248 million.""", language="text")
+    st.caption("The **Observation** lines come from tools, not the model. Without them the model would answer from memory and could be outdated.")
+
+    c1, c2 = st.columns(2)
+    with c1.container(border=True):
+        st.markdown("**CoT**  \nThinks only. Good for logic and arithmetic. Can confidently use wrong or old facts.")
+    with c2.container(border=True):
+        st.markdown("**ReAct**  \nThinks + uses tools. Good when answers need fresh facts, calculations or databases. "
+                    "Needs a loop in your code and a step limit.")
+    st.info("This is the idea behind **function calling** (Module 8) and agents: modern APIs return a structured tool call "
+            "instead of free text, but the Thought → Action → Observation loop is the same.")
+
+    st.markdown("##### 🟢 Run a live ReAct loop")
+    st.caption("Tools are simulated locally: `lookup` knows a few facts, `calc` does arithmetic. Max 5 steps = up to 5 model calls.")
+    rq = st.text_input("Question", "What is the population of Japan multiplied by 2?", key="m4_react_q")
+    FACTS = {"population of japan": "About 124 million (2024).", "population of india": "About 1.43 billion (2023).",
+             "height of mount everest": "8,849 metres.", "capital of australia": "Canberra."}
+
+    def _tool(name, arg):
+        if name == "lookup":
+            return FACTS.get(arg.strip().lower(), "No result found.")
+        if name == "calc":
+            if not re.fullmatch(r"[0-9+\-*/(). %]+", arg):
+                return "Invalid expression."
+            try:
+                return str(eval(arg, {"__builtins__": {}}, {}))  # digits/operators only
+            except Exception as e:  # noqa: BLE001
+                return f"Error: {e}"
+        return f"Unknown tool {name}."
+
+    def _react():
+        trace = f"Question: {rq}\n"
+        for _ in range(5):
+            out = generate(REACT_SYS + "\n\n" + trace)[0] or ""
+            out = out.split("Observation:")[0].rstrip()
+            trace += out + "\n"
+            if "Final Answer:" in out:
+                break
+            m = re.search(r"Action:\s*(\w+)\[(.*)\]", out)
+            if not m:
+                trace += "Observation: (no valid Action found — use tool[input])\n"
+                continue
+            trace += f"Observation: {_tool(m.group(1), m.group(2))}\n"
+        return trace
+
+    res = run_live("▶ Run ReAct loop", _react, key="m4_react")
+    if res:
+        st.code(res, language="text")
+        st.caption("Lines starting with “Observation:” were written by your code, everything else by the model.")
+
+
+with tabs[7]:
+    show_dg("m4:7", max_w=7.0, max_h=7.5)
     st.dataframe(pd.DataFrame({
         "": ["Thinking style", "Best for", "How", "Weakness"],
         "Chain-of-Thought": ["Linear, step by step", "Math, logic, factual QA", "“Let's think step by step” / examples", "Can be inconsistent"],
@@ -248,17 +435,29 @@ with tabs[6]:
 
 
 # ---------------------------------------------------------------------------
-with tabs[7]:
+with tabs[8]:
     takeaway([
         "Basic prompting guesses; advanced prompting makes the model reason, plan and justify.",
         "CoT: step-by-step reasoning (zero-shot cue, few-shot examples, or Auto-CoT self-generated examples).",
         "Few-shot examples can bias the model — choose them carefully.",
         "Self-Consistency samples multiple reasoning paths and takes the majority — reliability for single-answer tasks.",
         "Tree-of-Thought branches, evaluates and prunes — for creative and strategic problems.",
+        "Bias grows with examples: zero-shot < one-shot < few-shot (one-sided) — balance and diversify your examples.",
+        "Auto-CoT = warm-up (model writes its own worked examples) then test (real question); the paper also clusters questions for diversity.",
+        "ReAct = Thought → Action → Observation loop: the model reasons, your code runs a tool, the result goes back in.",
+        "CoT can still be wrong when the *knowledge* is wrong (e.g. tax slabs) — reasoning is not the same as facts.",
     ])
+    st.markdown("##### 📚 Further reading (original papers)")
+    st.markdown(
+        "- [Chain-of-Thought Prompting (Wei et al., 2022)](https://arxiv.org/abs/2201.11903)\n"
+        "- [Zero-shot CoT: “Let's think step by step” (Kojima et al., 2022)](https://arxiv.org/abs/2205.11916)\n"
+        "- [Auto-CoT (Zhang et al., 2022)](https://arxiv.org/abs/2210.03493)\n"
+        "- [Self-Consistency (Wang et al., 2022)](https://arxiv.org/abs/2203.11171)\n"
+        "- [Tree of Thoughts (Yao et al., 2023)](https://arxiv.org/abs/2305.10601)\n"
+        "- [ReAct: reasoning + acting (Yao et al., 2022)](https://arxiv.org/abs/2210.03629)")
 
 
-with tabs[8]:
+with tabs[9]:
     quiz("m4", [
         {"q": "What does “Let's think step by step” mainly do?",
          "options": ["Gives the model internet access", "Triggers a learned multi-step reasoning pattern", "Lowers the temperature", "Adds memory"],
@@ -273,4 +472,19 @@ with tabs[8]:
          "options": ["Solving the target question", "The model generating and solving its own example problems",
                      "A human writing examples", "Fine-tuning the model"], "answer": 1,
          "why": "It's a warm-up that builds a self-made few-shot context."},
+        {"q": "In the fraud experiment, why did the few-shot prompt answer “Money laundering” instead of “Structuring”?",
+         "options": ["Structuring is not a real fraud type", "Its examples were mostly labelled Money laundering, so the model copied that pattern",
+                     "Temperature was too high", "The model ignored the examples"], "answer": 1,
+         "why": "One-sided examples bias the answer towards the labels the model just saw."},
+        {"q": "In ReAct, who produces the “Observation” lines?",
+         "options": ["The model, from memory", "Your code, after running the tool the model asked for",
+                     "The user", "The tokenizer"], "answer": 1,
+         "why": "The model only proposes an Action; the application executes it and feeds back the result."},
+        {"q": "Which prompt gives the model one worked example with reasoning?",
+         "options": ["Zero-shot CoT", "One-shot CoT", "Self-Consistency", "Tree-of-Thought"], "answer": 1,
+         "why": "One-shot = exactly one demonstration; few-shot = several."},
+        {"q": "What does the real Auto-CoT paper add to the simple two-phase idea?",
+         "options": ["It fine-tunes the model", "It clusters questions and picks a representative from each for diverse examples",
+                     "It removes reasoning", "It uses a calculator"], "answer": 1,
+         "why": "Cluster-then-sample keeps self-generated examples diverse."},
     ])

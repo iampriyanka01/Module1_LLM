@@ -116,7 +116,7 @@ DG["m4:3"] = (chain([("Many\\nquestions", "grey"), ("Cluster by\\nsimilarity", "
 DG["m4:4"] = (raw(node("q", "Question", "grey") + node("p1", "Reasoning path 1\\nanswer 42", "blue") + node("p2", "Reasoning path 2\\nanswer 42", "blue") + node("p3", "Reasoning path 3\\nanswer 40", "blue") +
                   node("v", "Majority vote", "orange") + node("a", "Final answer: 42", "green") + "q -> p1; q -> p2; q -> p3; p1 -> v; p2 -> v; p3 -> v; v -> a;"),
               "Ask several times and trust the answer most paths agree on.")
-DG["m4:6"] = (raw(
+DG["m4:7"] = (raw(
     node("s", "Start", "grey", "ellipse") + node("q1", "Simple, one fact?", "yellow", "diamond") + node("z", "Zero-shot", "green") +
     node("q2", "Needs a fixed\\nstyle or format?", "yellow", "diamond") + node("f", "Few-shot", "green") +
     node("q3", "Needs multi-step\\nreasoning?", "yellow", "diamond") + node("cot", "Chain-of-Thought", "green") +
@@ -236,3 +236,7 @@ def show_dg(key: str, max_w: float = 8.5, max_h: float = 5.0):
     """Show the diagram stored under `key` (e.g. 'm3:1') with its caption."""
     dot, caption = DG[key]
     diagram(dot, caption, max_w, max_h)
+
+DG["m4:6"] = (chain([("Question", "grey"), ("Thought", "blue"), ("Action\\n(tool call)", "orange"), ("Observation\\n(tool result)", "green"), ("Final answer", "grey")],
+                    loops=[(3, 1, "think again")]),
+              "ReAct loop: the model thinks and picks an action, your code runs the tool, the observation goes back in.")
