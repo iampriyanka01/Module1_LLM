@@ -6,7 +6,8 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from core.ui import analogy, compare, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m51",
@@ -47,13 +48,14 @@ with tabs[0]:
          "1. Client **FIN** “I'm done sending.” 2. Server **ACK** “Got it.” 3. Server **FIN** “I'm done too.” "
          "4. Client **ACK** “All done!”\n\nClean closure frees resources (unclosed connections linger in `TIME_WAIT`)."),
     ])
-    st.graphviz_chart("""
+    diagram("""
 digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica" fillcolor="#eef2ff"];
  a [label="Type URL"]; b [label="DNS → IP"]; c [label="TCP handshake\\nSYN · SYN-ACK · ACK"]; d [label="Packets"]; e [label="Reassemble & render"]; f [label="FIN · ACK · FIN · ACK"];
  a->b->c->d->e->f; }""")
 
 with tabs[1]:
     st.subheader("Why break data into packets?")
+    show_dg("m51:1")
     analogy("Sending a large book by a courier that only accepts small envelopes: tear out each page, number it, send "
             "separately. The receiver confirms each one (ACK).", title="Book by post")
     size_kb = st.slider("File size (KB)", 1, 5000, 500)
@@ -74,7 +76,7 @@ with tabs[2]:
     st.subheader("Client-server architecture")
     analogy("In a restaurant you (client) order, the kitchen (server) cooks, and the waiter (API) carries the request and "
             "brings back the food. You never enter the kitchen.", title="Restaurant")
-    st.graphviz_chart("""
+    diagram("""
 digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica"];
  C [label="Client\\n(you / your app / browser)" fillcolor="#dbeafe"]; A [label="API\\n(the waiter: rules for asking)" fillcolor="#fef9c3"];
  S [label="Server\\n(kitchen: Gemini, ChatGPT…)" fillcolor="#dcfce7"];
@@ -84,6 +86,7 @@ digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica
                "the result back in a format your app understands.")
 
 with tabs[3]:
+    show_dg("m51:3")
     st.dataframe(pd.DataFrame({
         "": ["Idea", "Analogy", "LLM example", "Pros", "Cons"],
         "Serverful": ["Dedicated server/VM, always running", "Kitchen open 24×7 even with no orders",
@@ -107,6 +110,7 @@ with tabs[3]:
 with tabs[4]:
     definition("JSON (JavaScript Object Notation)", "a lightweight text format of **key-value pairs** for exchanging data — "
                "the language APIs speak. Not a programming language. Like a clinic form with labelled fields.")
+    show_dg("m51:4")
     raw = st.text_area("Edit the JSON (try breaking it — remove a quote or add a trailing comma)",
                        json.dumps({"name": "Nikhil", "age": 22, "interests": ["AI", "Coding", "Space"], "is_student": True}, indent=2),
                        height=200)
@@ -126,6 +130,7 @@ with tabs[4]:
 
 with tabs[5]:
     st.subheader("Call a real API")
+    show_dg("m51:5")
     st.caption("Uses the free mock API **jsonplaceholder.typicode.com** — writes are faked, nothing is stored.")
     c1, c2 = st.columns([1, 3])
     method = c1.selectbox("HTTP method", ["GET", "POST", "PUT", "PATCH", "DELETE"])
@@ -160,6 +165,7 @@ print(resp.status_code)   # 200 / 201 / 404 ...
 print(resp.json())        # parsed JSON → Python dict""", language="python")
 
 with tabs[6]:
+    show_dg("m51:6")
     codes = pd.DataFrame([
         ("1xx", 100, "Continue", "Headers received, send the body", "Informational"),
         ("2xx", 200, "OK", "Success, here is your data", "Success"),

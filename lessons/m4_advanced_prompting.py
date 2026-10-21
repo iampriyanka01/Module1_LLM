@@ -5,7 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from core.llm import generate, generate_many, run_live
-from core.ui import analogy, cards, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, definition, diagram, page_header, quiz, stepper, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m4",
@@ -26,6 +27,7 @@ with tabs[0]:
     analogy("First you tell an intern “just do this”, then you show examples, then you ask them to think like an expert. "
             "But when the task needs analysis, planning or justification, you need them to *think* — and show their work.",
             title="The intern")
+    show_dg("m4:0")
     cards([
         ("1 · Blind guessing", "“A man has 4 sons. Each son has a sister. How many children?” → basic prompt may say 8. "
                                "Correct: **5** (they share one sister)."),
@@ -57,6 +59,7 @@ with tabs[0]:
 with tabs[1]:
     definition("Chain-of-Thought (CoT)", "prompting the model to break the problem down, reason step by step, and only then "
                                          "conclude — like Intern B who writes “25 × 2 = 50 pens/day, 50 × 3 = 150”.")
+    show_dg("m4:1")
     st.markdown("**What happens inside?** LLMs don't *think* — they predict the next token. During training they saw "
                 "countless texts where “Let's think step by step” was followed by multi-line reasoning. The phrase works like a "
                 "director saying *“play it serious”* to an actor: it switches the model into a **reasoning pattern**. "
@@ -75,6 +78,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Few-shot CoT — teach by demonstration")
+    show_dg("m4:2")
     st.code("""You are an intelligent HR assistant. Recommend the best-fit job title.
 Format:  Resume: <text>  Reasoning: <why>  Job Title: <prediction>
 
@@ -117,6 +121,7 @@ Give one line of reasoning, then 'Fraud Type: <answer>'."""
 
 with tabs[3]:
     st.subheader("Auto-CoT — the model becomes its own tutor")
+    show_dg("m4:3")
     analogy("A junior analyst warms up on 2–3 practice reports from past projects before touching the client's data, then "
             "applies the same structure to the real task.", title="Warm-up before the real match")
     st.markdown("**Phase 1:** ask the model to *generate* a few similar problems and solve them step by step (not the target "
@@ -144,6 +149,7 @@ with tabs[3]:
 
 with tabs[4]:
     st.subheader("Self-Consistency — ask several times, trust the majority")
+    show_dg("m4:4")
     analogy("Unsure about a math answer? Solve it again a different way, and again. If you keep getting the same answer, "
             "you're confident.", title="Double-checking")
     st.markdown("LLMs are **non-deterministic**, so even CoT can produce different answers. Self-consistency: "
@@ -193,7 +199,7 @@ with tabs[5]:
     st.subheader("Tree-of-Thought — think like a planner")
     analogy("Pitching a startup: brainstorm several ideas (branches), explore each (market? business model? tech? edge?), "
             "evaluate and prune, then commit to the strongest.", title="Startup incubator")
-    st.graphviz_chart("""
+    diagram("""
 digraph { rankdir=TB; node [shape=box style="rounded,filled" fontname="Helvetica" fillcolor="#f1f5f9"];
  Q [label="Problem" fillcolor="#dbeafe"]; A [label="Idea 1: grocery app"]; B [label="Idea 2: wellness platform"]; C [label="Idea 3: smart water bottle"];
  A1 [label="Crowded market ✗" fillcolor="#fee2e2"]; B1 [label="High demand, content-heavy ~" fillcolor="#fef9c3"]; C1 [label="Niche + health + IoT ✓" fillcolor="#dcfce7"];
@@ -220,6 +226,7 @@ digraph { rankdir=TB; node [shape=box style="rounded,filled" fontname="Helvetica
             st.markdown(res[1])
 
 with tabs[6]:
+    show_dg("m4:6", max_w=7.0, max_h=7.5)
     st.dataframe(pd.DataFrame({
         "": ["Thinking style", "Best for", "How", "Weakness"],
         "Chain-of-Thought": ["Linear, step by step", "Math, logic, factual QA", "“Let's think step by step” / examples", "Can be inconsistent"],

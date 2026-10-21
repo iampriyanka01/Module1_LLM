@@ -4,7 +4,8 @@ import pandas as pd
 import streamlit as st
 
 from core import sim
-from core.ui import analogy, cards, definition, page_header, quiz, takeaway
+from core.ui import analogy, cards, definition, diagram, page_header, quiz, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m1",
@@ -189,7 +190,7 @@ with tabs[0]:
 """
         )
     with c2:
-        st.graphviz_chart(
+        diagram(
             """
 digraph {
   rankdir=TB; node [shape=box style="rounded,filled" fontname="Helvetica"];
@@ -237,6 +238,7 @@ digraph {
 # ---------------------------------------------------------------------------
 with tabs[1]:
     st.subheader("Machines learn like people do — three ways")
+    show_dg("m1:1")
     analogy("Some students learn with a teacher (answers given), some explore on their own, "
             "and some learn by trial and error. Machines do the same.")
     a, b, c = st.columns(3)
@@ -399,7 +401,7 @@ with tabs[2]:
     if "ml_life_step" not in st.session_state:
         st.session_state["ml_life_step"] = 0
     i = st.session_state["ml_life_step"]
-    st.graphviz_chart(lifecycle_dot(i), width="stretch")
+    diagram(lifecycle_dot(i))
     st.caption("Blue = done, orange = you are here, grey = still to come. Red dashed arrows: go back when results are poor. "
                "Green dashed arrow: the cycle never really ends, because the world changes.")
     name, icon, what, example = LIFECYCLE[i]
@@ -425,7 +427,7 @@ with tabs[3]:
     st.subheader("Deep learning: layers of artificial neurons")
     definition("Neural network", "interconnected nodes (neurons) that process data and learn patterns — loosely "
                                  "inspired by the brain. 'Deep' = many hidden layers.")
-    st.graphviz_chart(
+    diagram(
         """
 digraph {
   rankdir=LR; node [shape=box style="rounded,filled" fillcolor="#eef2ff" fontname="Helvetica"];
@@ -511,6 +513,7 @@ digraph {
 # ---------------------------------------------------------------------------
 with tabs[4]:
     st.subheader("Generative AI — machines that create")
+    show_dg("m1:4")
     definition("Generative AI", "AI that creates *new* data — text, images, audio, video — by learning patterns from "
                                 "the data it was trained on. Traditional AI classifies or predicts; GenAI produces.")
     analogy("Type “Write a poem about a rainy evening in Mumbai” and you get a brand-new poem in seconds. "
@@ -553,6 +556,7 @@ with tabs[4]:
 # ---------------------------------------------------------------------------
 with tabs[5]:
     st.subheader("How a model picks the next word")
+    show_dg("m1:5")
     st.markdown(
         "A language model doesn't know the answer in advance — it scores every possible next token, then "
         "**samples** one. Three dials control that choice:"
@@ -630,6 +634,7 @@ print(resp.text)""",
 
 # ---------------------------------------------------------------------------
 with tabs[6]:
+    show_dg("m1:6")
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("### ✅ Benefits")

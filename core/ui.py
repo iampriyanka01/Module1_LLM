@@ -131,3 +131,28 @@ def quiz(module_key: str, questions: list[dict]):
 
 def module_score(module_key: str) -> float | None:
     return _progress().get(module_key)
+
+
+# ---------------------------------------------------------------------------
+# Diagrams: one helper so every picture is small, readable and theme-safe
+# ---------------------------------------------------------------------------
+_DG_DEFAULTS = (
+    'bgcolor="white"; pad=0.2; '
+    'node [shape=box style="rounded,filled" fillcolor="#f1f5f9" fontcolor="#111111" color="#475569" '
+    'fontname="Helvetica" fontsize=13 margin="0.16,0.09"]; '
+    'edge [color="#475569" fontcolor="#334155" fontname="Helvetica" fontsize=11]; '
+)
+
+
+def diagram(dot: str, caption: str | None = None, max_w: float = 8.5, max_h: float = 5.0):
+    """Render a Graphviz diagram at a modest size (never stretched to the full page).
+
+    Adds defaults first (light fill + dark text on every node, white background) so a node without its own
+    colour is still readable in light and dark themes; the diagram's own attributes override them.
+    `max_w` / `max_h` are inches: larger graphs are scaled down to fit.
+    """
+    i = dot.index("{")
+    dot = dot[: i + 1] + f' size="{max_w},{max_h}"; ' + _DG_DEFAULTS + dot[i + 1:]
+    st.graphviz_chart(dot, width="content")
+    if caption:
+        st.caption(caption)

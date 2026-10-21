@@ -15,7 +15,8 @@ import streamlit as st
 from pydantic import BaseModel, ValidationError
 
 from core.llm import call_with_retry, get_client, get_model, llm_ready, log_call, make_config, types
-from core.ui import analogy, cards, compare, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m8",
@@ -125,6 +126,7 @@ tabs = st.tabs(["Why tools?", "Types of tools", "🪪 Tool card anatomy", "🔄 
 with tabs[0]:
     definition("Knowledge cutoff", "a model only knows data up to its training date. Ask about today's weather, prices or "
                "news and it will confidently *guess*.")
+    show_dg("m8:0")
     analogy("A brilliant brain locked in a room with old newspapers. It can reason and imagine, but can't see or touch "
             "today's world. Tools give it **eyes** (live data) and **hands** (actions).", title="Brain in a room")
     definition("Tool", "an external function, service or API the LLM can ask to call. The LLM sends structured input "
@@ -134,6 +136,7 @@ with tabs[0]:
            ("🧳 Travel advisor", "Reviews + ratings + climate → day-by-day itinerary")], cols=3)
 
 with tabs[1]:
+    show_dg("m8:1")
     c1, c2, c3 = st.columns(3)
     c1.markdown("### 👀 Data retrieval\n*Eyes to see.* Fetch real-time or external data.\n\nGoogle/Bing search, weather, stock prices, news.")
     c2.markdown("### 🧮 Computation\n*A calculator brain.* LLMs predict maths instead of calculating.\n\nPython REPL, maths API, currency conversion.")
@@ -149,6 +152,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("A tool card is the label on the box — what the LLM sees")
+    show_dg("m8:2")
     st.markdown("**Name** (identity) · **Description** (when to use it) · **Parameters schema** (input blueprint) · "
                 "**Output structure** (expected result). Vague cards make the model guess — and guessing breaks apps.")
     c1, c2 = st.columns(2)
@@ -207,7 +211,7 @@ with tabs[3]:
         ("LLM writes the final answer", "The tool result goes back to the model, which turns JSON into language: "
                                         "“Gurugram is sunny with a high of 34°C… carry sunscreen!”"),
     ])
-    st.graphviz_chart("""
+    diagram("""
 digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica"];
  U [label="User question" fillcolor="#f1f5f9"]; L1 [label="LLM\\n(chooses tool)" fillcolor="#dbeafe"]; J [label="function_call JSON" fillcolor="#fef9c3"];
  B [label="Your backend\\nruns Python / API" fillcolor="#dcfce7"]; R [label="function_response" fillcolor="#fef9c3"]; L2 [label="LLM\\n(final answer)" fillcolor="#dbeafe"];
@@ -263,6 +267,7 @@ def show_trace(trace):
 
 with tabs[4]:
     st.subheader("Watch Gemini choose tools, your code run them, and the answer come back")
+    show_dg("m8:4")
     weather_src = "OpenWeatherMap (WEATHER_API_KEY found)" if (os.getenv("WEATHER_API_KEY") or os.getenv("OPENWEATHER_API_KEY")) else "mock weather (add WEATHER_API_KEY to .env for live data)"
     st.caption(f"Weather source: {weather_src} · stock & FX data are mock services so results are reproducible.")
     presets = {
@@ -315,6 +320,7 @@ while True:
 # ---------------------------------------------------------------------------
 with tabs[5]:
     st.subheader("`3_weatherSearchaddingLLM.py` — what works and what to fix")
+    show_dg("m8:5")
     st.markdown("Your script correctly defines a tool card, passes it via `types.Tool(function_declarations=[...])`, and reads "
                 "`function_call.name` / `.args`. Five things to improve:")
     fixes = [
@@ -436,6 +442,7 @@ FALLBACKS = {"weather": {"temperature": "N/A", "condition": "Data unavailable", 
 
 with tabs[6]:
     st.subheader("Fan-out, fan-in: call independent tools at the same time")
+    show_dg("m8:6")
     st.markdown("“Plan a trip to Manali: weather, hotels and USD→INR rate.” The three calls don't depend on each other, so the "
                 "backend fires them **concurrently** (`asyncio.gather`) and waits only for the slowest.")
     compare("Use async when…", "2+ **independent** I/O-bound API calls · user-facing latency matters · you want partial results early",
@@ -472,6 +479,7 @@ with tabs[6]:
 
 with tabs[7]:
     st.subheader("More tools, more failure points — fail at the tool level, not the app level")
+    show_dg("m8:7")
     principles = [
         ("1 · Isolate failures", "Wrap each call in try/except; return `{\"error\": ...}` for that tool, keep the others."),
         ("2 · Timeouts, aggressively", "Per-request and overall timeouts — never trust an external API to be fast."),

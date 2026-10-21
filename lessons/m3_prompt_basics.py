@@ -3,6 +3,7 @@ import streamlit as st
 
 from core.llm import generate, run_live
 from core.ui import analogy, compare, definition, page_header, quiz, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m3",
@@ -22,6 +23,7 @@ tabs = st.tabs(["What is a prompt?", "🧱 Prompt builder", "📉 Loss in the mi
 
 with tabs[0]:
     definition("Prompt", "the instruction or input you give a language model to get a response.")
+    show_dg("m3:0")
     definition("Prompt engineering", "the craft of writing smart, structured, context-aware instructions that guide the "
                                      "model to useful, high-quality output — knowing *how* to ask, *what* to include.")
     analogy("Tell a waiter “Get me food” and you get something random. Say “A spicy paneer tikka starter, served hot, "
@@ -34,6 +36,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("The four building blocks of a great prompt")
+    show_dg("m3:1")
     st.markdown("Fill each block and watch the prompt assemble. Toggle blocks off to see what the model loses.")
     presets = {
         "Career coach (from the notes)": ("You are a professional career coach with 10+ years of experience.",
@@ -78,6 +81,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Models skim the middle — just like you skim a long WhatsApp message")
+    show_dg("m3:2")
     st.markdown("LLMs pay most attention to the **start** (where instructions usually are) and the **end** (recency). "
                 "Instructions buried in the middle of a long prompt can get ignored.")
     pos = st.radio("Where is the key instruction placed?", ["Start", "Middle", "End", "Start + reminder at end"], horizontal=True)
@@ -121,6 +125,7 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Prompt crafting — how you say it")
+    show_dg("m3:3")
     analogy("“Is it bad if something's wrong with the papers or like if it's fake?” confuses a lawyer. “How do I verify a "
             "land title legally in Delhi, and what red flags should I watch for?” gets a precise answer.", title="Talking to a lawyer")
     crafting = {
@@ -145,6 +150,7 @@ with tabs[3]:
 
 with tabs[4]:
     st.subheader("Zero-shot · One-shot · Few-shot · Role-based")
+    show_dg("m3:4")
     analogy("Teaching a math problem: just give it (zero-shot), show one solved example (one-shot), show several "
             "(few-shot), or ask them to act as a math examiner (role-based).", title="Teaching a student")
     tasks = {
@@ -212,6 +218,7 @@ with tabs[4]:
 
 with tabs[5]:
     st.subheader("Dynamic prompting — prompts that adapt like a good waiter")
+    show_dg("m3:5")
     analogy("A waiter suggests the candlelight menu to a celebrating couple, the kids' combo to a family and quick-serve "
             "items to someone in a hurry. Same job, prompt adapted to context.", title="Restaurant")
     template = st.text_input("Template (use {placeholders})",

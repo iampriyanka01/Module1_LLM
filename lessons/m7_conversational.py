@@ -10,6 +10,7 @@ from core import sim
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call,
                       make_config, response_text, run_live)
 from core.ui import analogy, compare, definition, page_header, quiz, stepper, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m7",
@@ -29,6 +30,7 @@ tabs = st.tabs(["Why plain prompts fail", "Roles & messages", "🎭 System-promp
 # ---------------------------------------------------------------------------
 with tabs[0]:
     st.subheader("The simple movie chatbot")
+    show_dg("m7:0")
     st.markdown("User: *Who directed Inception?* → Bot: *Christopher Nolan.*  \nUser: *What other movies did **he** direct?* → "
                 "Bot: *I'm sorry, who do you mean?* 🤦")
     lim = [
@@ -73,6 +75,7 @@ client.models.generate_content(..., "How many paws are in my house?")   chat.sen
 with tabs[1]:
     definition("Chat Completion", "interacting with a model through a structured list of role-tagged messages. It "
                "(1) formats the chat history into model input and (2) generates the next **assistant** message.")
+    show_dg("m7:1")
     c1, c2, c3 = st.columns(3)
     c1.markdown("### 🎬 system\nThe invisible director: persona, tone, rules. Set once at the start — like the note a "
                 "support agent reads before every call.")
@@ -111,6 +114,7 @@ PERSONAS = {
 }
 with tabs[2]:
     st.subheader("One instruction, every reply")
+    show_dg("m7:2")
     st.markdown("The system prompt sets the model's **initial mindset**; every response is filtered through it. Without it, "
                 "behaviour is generic and inconsistent.")
     persona = st.selectbox("Persona", list(PERSONAS) + ["(write your own)"], key="m7_persona")
@@ -147,6 +151,7 @@ with tabs[2]:
 # ---------------------------------------------------------------------------
 with tabs[3]:
     st.subheader("How does an LLM “chat”? It predicts one token at a time")
+    show_dg("m7:3")
     st.markdown("1. Split text into **tokens** → 2. turn tokens into **vectors** → 3. **attention** relates every token to the "
                 "others (“cat … on the” → expect a location) → 4. score every possible next token → 5. **pick** one → 6. repeat.")
     st.markdown("#### Step 5 — decoding strategies")
@@ -180,6 +185,7 @@ with tabs[3]:
 # ---------------------------------------------------------------------------
 with tabs[4]:
     st.subheader("It's not memory — it's prompt engineering")
+    show_dg("m7:4")
     st.markdown("LLMs are **stateless**. In text completion, “How tall is **it**?” fails because the model never saw "
                 "“Mount Everest”. In chat completion, the app re-sends the full history every call — that's the illusion of memory.")
     analogy("A conversation on a whiteboard of fixed size: as you keep writing, the oldest lines are wiped to make room. "
@@ -232,6 +238,7 @@ def cosine(a, b):
 
 with tabs[5]:
     st.subheader("Three ways to fit a long conversation — and cut cost")
+    show_dg("m7:5")
     history = [
         ("user", "Hi, how are you?"), ("assistant", "Great, thanks! How can I help?"),
         ("user", "I want to go to Goa for 3 days with my partner. Budget is 40,000 rupees."),
@@ -292,6 +299,7 @@ with tabs[5]:
 # ---------------------------------------------------------------------------
 with tabs[6]:
     st.subheader("Your `chatbot_app.py` — upgraded")
+    show_dg("m7:6")
     st.markdown("Your app summarised the conversation every 5 user turns and showed it in the sidebar. Here the same idea "
                 "becomes a **context-management strategy**: the running summary is fed back to the model so older turns "
                 "can be dropped.")
@@ -369,6 +377,7 @@ with tabs[6]:
 # ---------------------------------------------------------------------------
 with tabs[7]:
     st.subheader("Already have OpenAI-style code? Point it at Gemini")
+    show_dg("m7:7")
     st.markdown("Gemini exposes an **OpenAI-compatible endpoint**, including function calling. Change three things: the key, the "
                 "`base_url` and the model name — everything else stays the same.")
     st.code("""from openai import OpenAI

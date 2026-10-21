@@ -10,7 +10,8 @@ import streamlit as st
 from core.course_prompts import EVALUATOR_SYSTEM_PROMPT, STUDY_BUDDY_SYSTEM_PROMPT, safe_parse_json
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call, response_text,
                       run_live)
-from core.ui import analogy, cards, compare, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m9",
@@ -33,6 +34,7 @@ tabs = st.tabs(["🌀 Hallucinations", "Model limitations", "🧪 Quirk-surface 
 with tabs[0]:
     definition("AI hallucination", "output that sounds plausible but is false, unsupported, or inconsistent with the data "
                "provided — like an overconfident intern who'd rather answer than admit they don't know.")
+    show_dg("m9:0")
     st.markdown("#### Five root causes")
     cards([
         ("1 · Training data gaps & biases", "Missing or skewed data → the model pattern-fills. Ask about new Indian labour laws and it "
@@ -66,6 +68,7 @@ with tabs[0]:
 # ---------------------------------------------------------------------------
 with tabs[1]:
     st.markdown("A good evaluator thinks like a detective: not just *what* went wrong, but *why*.")
+    show_dg("m9:1")
     with st.expander("1 · Structural limitations — what the model can't know, fetch or hold", expanded=True):
         st.markdown("- **Stale knowledge** — training cutoff: misses last quarter's earnings, amended laws, recalled drugs.\n"
                     "- **No real-time sensing** — “Weather in Mumbai now?” → “Mumbai is typically humid…” instead of 31°C and raining. "
@@ -88,6 +91,7 @@ with tabs[1]:
 # ---------------------------------------------------------------------------
 with tabs[2]:
     st.subheader("Proactively expose weak spots")
+    show_dg("m9:2")
     st.markdown("Three test families: **contrastive prompts** (same request, different wording), **numeric stress tests** "
                 "(conversions, running totals), **multi-turn memory checks**.")
     tests = [
@@ -135,6 +139,7 @@ def ngrams(tokens, n):
 
 with tabs[3]:
     st.subheader("Classic metrics — great for yes/no and numbers")
+    show_dg("m9:3")
     st.markdown("#### Confusion matrix → accuracy, precision, recall, F1 (spam filter)")
     c1, c2 = st.columns(2)
     with c1:
@@ -191,6 +196,7 @@ KYOTO_SPOTS = {"Fushimi Inari Shrine", "Kinkaku-ji", "Kiyomizu-dera", "Arashiyam
                "Ginkaku-ji", "Philosopher's Path", "Nijo Castle", "Tofuku-ji", "Pontocho", "Sanjusangen-do"}
 with tabs[4]:
     st.subheader("Three tiers: automated signals → human judgment → aggregate decision")
+    show_dg("m9:4")
     st.markdown("Example: an AI travel planner answers “Plan a 3-day trip to Kyoto focused on culture, temples and food.”")
     itinerary = {
         "days": [
@@ -240,6 +246,7 @@ with tabs[4]:
 # ---------------------------------------------------------------------------
 with tabs[5]:
     st.subheader("Qualitative assessment — the human touch")
+    show_dg("m9:5")
     st.markdown("Quantitative metrics (accuracy, relevance, coherence, creativity, format compliance, length & latency) tell you "
                 "*what* happened. Humans tell you whether it *helped*.")
     st.markdown("#### Build a fair rubric")
@@ -291,7 +298,7 @@ with tabs[6]:
     st.subheader("Model-based evaluation with your own Study Buddy + Evaluator")
     st.markdown("**Target model** (Study Buddy) answers → **Evaluator model** applies the rubric → scores + feedback. "
                 "Scalable, consistent and 24/7 — but it can't fully capture nuance, and it can be wrong too.")
-    st.graphviz_chart("""
+    diagram("""
 digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica"];
  Q [label="Student question" fillcolor="#f1f5f9"]; T [label="Target model\\nStudy Buddy" fillcolor="#dbeafe"];
  E [label="Evaluator model\\n(rubric → strict JSON)" fillcolor="#fef9c3"]; P [label="safe_parse_json()\\n+ key check" fillcolor="#dcfce7"];
@@ -342,6 +349,7 @@ digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica
 # ---------------------------------------------------------------------------
 with tabs[7]:
     st.subheader("Try → learn → tweak → repeat")
+    show_dg("m9:7")
     analogy("A chef tastes, adjusts the seasoning, tastes again. Prompts are never “set and forget”.", title="Chef")
     stepper("refine", [
         ("Define target behaviour", "From the problem statement & rubric: summaries of 50-page papers must be **< 500 words** and keep **all key findings**."),
@@ -384,6 +392,7 @@ with tabs[7]:
 
 # ---------------------------------------------------------------------------
 with tabs[8]:
+    show_dg("m9:8")
     strategies = {
         "1 · Explicit task framing": ("The system prompt is the AI component's constructor: purpose, rules and limits set before any "
                                       "user data arrives — like your Study Buddy prompt (style, tone, safety & scope).",

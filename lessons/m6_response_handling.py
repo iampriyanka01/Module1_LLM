@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 
 from core.llm import generate, generate_many, llm_ready, run_live, stream
 from core.ui import analogy, cards, compare, definition, page_header, quiz, takeaway
+from core.diagrams import show_dg
 
 page_header(
     "m6",
@@ -30,6 +31,7 @@ with tabs[0]:
     analogy("You don't build a large website from raw HTML files — you use Flask or Django. Likewise you don't build "
             "production GenAI apps from raw prompts and function calls — you use a framework like LangChain.",
             title="Web frameworks")
+    show_dg("m6:0")
     st.markdown("Scenario: an **AI HR assistant** that reads hundreds of résumés, matches roles, remembers candidates and "
                 "answers policy questions from PDFs. Plain Python quickly gets messy:")
     probs = [
@@ -45,6 +47,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("10 capabilities, one HR assistant")
+    show_dg("m6:1")
     caps = [
         ("LLM integration", "Plug in Gemini, GPT-4, Claude as the brain", "“Summarize this résumé's key qualifications.”"),
         ("Prompt templates", "Reusable prompts with {placeholders}", "“Summarize the résumé of {candidate_name} for a {job_title} role.”"),
@@ -76,6 +79,7 @@ print(response.content)""", language="python")
 # ---------------------------------------------------------------------------
 with tabs[2]:
     st.subheader("Streaming — show the answer while it's being written")
+    show_dg("m6:2")
     analogy("Watching a friend's message appear in WhatsApp as they type feels fast and alive. Waiting 20 seconds for a "
             "wall of text feels broken.", title="WhatsApp typing…")
     compare("Synchronous (`stream()`)", "You order tea, **wait**, then order a snack. Simple, but the program is **blocked** "
@@ -122,6 +126,7 @@ async for chunk in llm.astream(prompt):  # async
 # ---------------------------------------------------------------------------
 with tabs[3]:
     st.subheader("Batch input — don't hit “Print” 100 times")
+    show_dg("m6:3")
     st.markdown("Send many inputs together instead of looping one by one: **faster**, **fewer round-trips**, "
                 "**scalable**, **cleaner code**. `.batch()` blocks until all are done; `.abatch()` is the async, non-blocking version.")
     compare("Manual loop", "```python\nresults = []\nfor r in resumes:\n    results.append(llm.invoke(r))\n```",
@@ -174,6 +179,7 @@ def extract_json(text: str) -> dict:
 
 with tabs[4]:
     st.subheader("LLMs are helpful — but not always predictable")
+    show_dg("m6:4")
     st.markdown("Ask for JSON with `name, age, email` and you may get missing fields, extra fields, renamed keys or "
                 "`\"age\": \"twenty\"`. At 10,000 résumés, one bad record can **crash the app or corrupt your database**.")
     definition("Pydantic", "a Python library that validates and parses data using type hints. Define a model once; it "
@@ -274,6 +280,7 @@ def cleanup(data: dict) -> tuple[dict, list[str]]:
 
 with tabs[5]:
     st.subheader("At scale, perfection isn't the goal — robustness is")
+    show_dg("m6:5")
     techniques = [
         ("1 · Try-except", "First line of defence: catch `ValidationError` so one bad output doesn't crash the app.", "Like a web form showing an error instead of crashing the site."),
         ("2 · Log invalid output", "Store the raw output that failed — your goldmine for debugging and prompt fixes.", "CCTV: rewind and see what happened."),
@@ -360,6 +367,7 @@ def corrector(text: str, category: str) -> str:
 
 with tabs[6]:
     st.subheader("Guardrails — quality control for an unpredictable engine")
+    show_dg("m6:6")
     st.markdown("**Why?** LLMs are probabilistic, context-sensitive, vulnerable to prompt injection, can hallucinate, can be "
                 "biased/unsafe, and increasingly make *decisions* (loans, résumés, legal answers) — like an intern making CEO decisions.")
     st.dataframe(pd.DataFrame([

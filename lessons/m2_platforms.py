@@ -5,14 +5,15 @@ import streamlit as st
 
 from core import sim
 from core.llm import generate, get_client, get_model, run_live
-from core.ui import analogy, cards, compare, definition, page_header, quiz, takeaway
+from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, takeaway
+from core.diagrams import show_dg
 
 
 # ---------------------------------------------------------------------------
 # Diagrams for "How LLMs are built": one overview + one detail picture per step
 # ---------------------------------------------------------------------------
-_NODE = 'node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=16 margin="0.2,0.12" color="#475569" penwidth=1.4];'
-_EDGE = 'edge [color="#475569" fontname="Helvetica" fontsize=14 penwidth=1.4];'
+_NODE = 'node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=14 margin="0.2,0.12" color="#475569" penwidth=1.4];'
+_EDGE = 'edge [color="#475569" fontname="Helvetica" fontsize=12 penwidth=1.4];'
 _LOOP = 'color="#dc2626" fontcolor="#dc2626" style=dashed constraint=false'
 
 
@@ -103,6 +104,7 @@ with tabs[0]:
     analogy("Your phone's predictive keyboard guesses your next word using only your messages. Now imagine a "
             "system that has read nearly every book, article, Wikipedia page and public web page ever published. "
             "That's a Large Language Model.")
+    show_dg("m2:0")
     definition("Large Language Model (LLM)", "a deep-learning model (usually a Transformer) trained on massive text to "
                                              "predict the next token — which lets it complete sentences, follow context "
                                              "across long conversations, mimic tone and intent, and answer coherently.")
@@ -158,7 +160,7 @@ with tabs[1]:
     st.markdown("**What happens in this step**")
     _l, mid, _r = st.columns([1, 4, 1])
     with mid:
-        st.graphviz_chart(BUILD_DETAIL[i], width="stretch")
+        diagram(BUILD_DETAIL[i], max_w=6.5, max_h=6.2)
     st.caption("Red dashed arrows are the learning loop: the model is corrected and tries again.")
     c1, c2, _ = st.columns([1, 1, 4])
     if c1.button("◀ Back", key="m2_build_back", disabled=i == 0, width="stretch"):
@@ -178,6 +180,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Machines read numbers, not words")
+    show_dg("m2:2")
     st.caption("This is an **illustrative** sub-word tokenizer. Real tokenizers (BPE, SentencePiece) learn their splits from data, but the idea is the same.")
     text = st.text_area("Type anything", "Unbelievably, the battery life of iPhone 14 lasts a day!", key="m2_tok")
     toks = sim.toy_tokenize(text)
@@ -199,6 +202,7 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Be the human in RLHF")
+    show_dg("m2:3")
     st.markdown("Prompt: **“Explain depression to someone going through it.”** The model produced four answers. "
                 "All are technically correct — rank them as a human reviewer would.")
     answers = {
@@ -220,6 +224,7 @@ with tabs[3]:
         )
 
 with tabs[4]:
+    show_dg("m2:4")
     compare("🔓 Open-source LLMs",
             "Code/weights are public: anyone can **use, modify, fine-tune, run offline**.\n\n"
             "*Analogy:* an electric-car engine whose blueprints are shared — anyone can build or improve it.\n\n"
@@ -263,6 +268,7 @@ with tabs[4]:
 with tabs[5]:
     definition("Parameter", "a learned weight inside the network — a 'memory slot' adjusted during training by "
                             "backpropagation and gradient descent. 13B parameters = 13 billion tuned numbers.")
+    show_dg("m2:5")
     st.markdown("**How parameters are formed:** a Transformer has layers, and the layers contain neurons. Each neuron has **weights and biases**: those are the parameters. "
                 "During training, backpropagation and gradient descent adjust them based on the model's error on each example.")
     st.markdown("**What the parameter count tells you:** *capacity* (how much it can learn) · *complexity* (how deep and wide it is) · "
@@ -298,6 +304,7 @@ with tabs[5]:
 
 with tabs[6]:
     st.subheader("🟢 Hands-on: good vs bad prompts")
+    show_dg("m2:6")
     st.caption("The course asks you to try both kinds of prompt on several models. Here you can run them side by side.")
     c1, c2 = st.columns(2)
     bad = c1.text_area("Bad (vague) prompt", "tell me about climate change", key="m2_bad")
@@ -317,6 +324,7 @@ with tabs[6]:
 
 with tabs[7]:
     st.subheader("Ethical considerations")
+    show_dg("m2:7")
     issues = [
         ("⚖️ Bias & fairness", "A career bot trained on historical data suggests engineering to boys and nursing to girls.",
          "2018: Amazon scrapped a hiring tool that downgraded résumés containing “women's”.",
