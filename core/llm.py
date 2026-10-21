@@ -267,15 +267,18 @@ def generate(prompt, *, system=None, temperature=None, top_p=None, top_k=None,
     try:
         resp = call_with_retry(call) if retry else call()
     except Exception as e:
-        log_call(prompt, None, time.perf_counter() - t0, error=str(e)[:120], model=model)
+        log_call(prompt, None, time.perf_counter() - t0, error=str(e)[:120], model=model, system=system)
         raise
     secs = time.perf_counter() - t0
-    log_call(prompt, resp, secs, model=model)
+    log_call(prompt, resp, secs, model=model, system=system)
     return response_text(resp), resp, secs
 
 
-def log_call(prompt, resp, secs, *, error=None, model=None, kind="generate"):
+def log_call(prompt, resp, secs, *, error=None, model=None, kind="generate", system=None):
     """Session-wide request log (Module 5.2: logging & monitoring)."""
+    cap = st.session_state.get("_prompt_capture")
+    if cap is not None:  # run_live is recording: keep the FULL prompt for display
+        cap.append({"system": system, "prompt": prompt if isinstance(prompt, str) else str(prompt)})
     u = usage(resp) if resp is not None else {}
     st.session_state.setdefault("call_log", []).append({
         "time": time.strftime("%H:%M:%S"),
@@ -314,7 +317,7 @@ def generate_many(prompts, *, system=None, temperature=None, max_tokens=None, mo
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         results = list(pool.map(one, prompts))
     for p, (txt, err, secs) in zip(prompts, results):  # log from the main thread
-        log_call(p, None, secs, error=err, model=mdl, kind="parallel")
+        log_call(p, None, secs, error=err, model=mdl, kind="parallel", system=system)
     return results
 
 
@@ -345,12 +348,31 @@ def run_live(label: str, fn, *, key: str,
     """Button + spinner + friendly errors. fn() is executed only on click.
     The result is stored in session_state[key] so it survives reruns."""
     if st.button(label, key=f"btn_{key}", type=button_type, disabled=not llm_ready(show_hint=False)):
+        st.session_state["_prompt_capture"] = []
         with st.spinner(spinner):
             try:
                 st.session_state[key] = fn()
             except Exception as e:  # noqa: BLE001 - surface any SDK error nicely
                 st.session_state[key] = None
                 st.error(friendly_error(e))
+        st.session_state[f"_prompts_{key}"] = st.session_state.pop("_prompt_capture", None) or []
     if not get_api_key():
         st.caption("🔑 Add a Gemini API key in the sidebar to enable this button.")
+    shown = st.session_state.get(f"_prompts_{key}")
+    if shown and st.session_state.get(key) is not None:
+        uniq = shown if len(shown) <= 12 else shown[:12]
+        with st.expander(f"📝 Exact prompt{'s' if len(shown) > 1 else ''} that produced this result "
+                         f"({len(shown)} call{'s' if len(shown) > 1 else ''})", expanded=True):
+            if len(shown) > 3 and len({(x['system'], x['prompt']) for x in shown}) == 1:
+                st.caption(f"The same prompt was sent {len(shown)} times (each call returns a different reasoning path):")
+                uniq = shown[:1]
+            for i, x in enumerate(uniq, 1):
+                if len(uniq) > 1:
+                    st.markdown(f"**Call {i}**")
+                if x.get("system"):
+                    st.caption("System instruction:")
+                    st.code(x["system"], language="text", wrap_lines=True)
+                st.code(x["prompt"], language="text", wrap_lines=True)
+            if len(shown) > 12:
+                st.caption(f"…and {len(shown) - 12} more calls.")
     return st.session_state.get(key)

@@ -215,6 +215,84 @@ with tabs[4]:
                        "Only as good as the examples", "May overfit the role → rigid replies"],
     }), hide_index=True, width="stretch")
     st.info("Few-shot and role-based combine well: *“You are a French teacher. Examples: Hello → Bonjour … Translate: What time is it?”*")
+    st.markdown("---")
+    st.markdown("#### More complex examples — full prompt, typical answer, live run")
+    st.caption("Each uses the same technique as above but on a realistic task. The **full prompt** is always shown (and again after a live run).")
+    BX = {}
+    BX["Zero-shot"] = dict(
+        why="No examples — all the control comes from precise instructions and a strict output format.",
+        prompt="""Extract the fields from the invoice text below and return ONLY valid JSON with these keys:
+vendor (string), invoice_date (YYYY-MM-DD), currency (ISO code), line_items (list of {description, qty, unit_price}),
+total (number), gst_included (true/false).
+If a field is missing, use null. Do not add any explanation.
+
+Invoice text:
+"Acme Cloud Pvt Ltd - Inv #8841 dated 3 Mar 2025. 2 x Compute Pro @ Rs 4,500; 1 x Storage 1TB @ Rs 1,200.
+Total Rs 10,200 incl. 18% GST.\"""",
+        answer="""{"vendor": "Acme Cloud Pvt Ltd", "invoice_date": "2025-03-03", "currency": "INR",
+ "line_items": [{"description": "Compute Pro", "qty": 2, "unit_price": 4500},
+                {"description": "Storage 1TB", "qty": 1, "unit_price": 1200}],
+ "total": 10200, "gst_included": true}""")
+    BX["One-shot"] = dict(
+        why="One example fixes the **format** (a table with owner and deadline) that is hard to describe in words.",
+        prompt="""Turn messy meeting notes into an action-item table (Task | Owner | Deadline). Skip anything that is not an action.
+
+Example:
+Notes: "Sam will send the deck by Friday. Lunch was great. Dev team to fix login bug before release on 12th."
+Output:
+| Task | Owner | Deadline |
+|---|---|---|
+| Send the deck | Sam | Friday |
+| Fix login bug | Dev team | Before release (12th) |
+
+Now do this one:
+Notes: "Priya to share budget draft Monday. We all agreed the venue is too pricey. Ravi will call two alternative venues and report back by Wednesday. Need someone to book the cab - Anil?"
+Output:""",
+        answer="""| Task | Owner | Deadline |
+|---|---|---|
+| Share budget draft | Priya | Monday |
+| Call two alternative venues and report back | Ravi | Wednesday |
+| Book the cab | Anil (to confirm) | Not specified |""")
+    BX["Few-shot"] = dict(
+        why="Three examples teach a **custom label set and reasoning style**, including a tricky edge case (a polite message that is actually urgent).",
+        prompt="""Triage each support ticket. Output: Priority (P1/P2/P3) | Team (Billing/Tech/Account) | Reason in 8 words or fewer.
+
+Ticket: "Please reset my password when you get a chance, no hurry."
+Output: P3 | Account | Routine request, no urgency stated.
+
+Ticket: "Hi team, just a heads-up: the checkout page shows an error and we lose orders every minute."
+Output: P1 | Tech | Polite tone, but revenue is being lost now.
+
+Ticket: "I was charged twice for last month's plan."
+Output: P2 | Billing | Duplicate charge, needs refund, not outage.
+
+Ticket: "Thanks for the great service! One thing - our whole team can't log in since this morning, demo is at 3pm."
+Output:""",
+        answer="P1 | Tech | Entire team locked out, demo deadline today.")
+    BX["Role-based"] = dict(
+        why="The **role + audience + constraints** change the depth, vocabulary and what the model focuses on.",
+        prompt="""You are a senior contract lawyer reviewing a SaaS agreement for a small startup founder with no legal background.
+
+Clause: "The Provider may terminate this Agreement at any time without notice, and shall have no liability for any loss of data arising from termination."
+
+Task: (1) Explain the clause in plain English in 2 sentences. (2) Rate the risk to the startup: Low / Medium / High, with one reason. (3) Suggest ONE replacement wording that is fairer.
+Do not give general legal disclaimers.""",
+        answer="""1. The provider can shut your account down whenever it wants, with no warning, and if you lose data because of that it isn't responsible.
+2. **High** - your business could stop overnight and you would have no way to recover data or claim compensation.
+3. "The Provider may terminate this Agreement with 30 days' written notice, and shall allow the Customer to export all data during that period.\"""")
+    bx_tabs = st.tabs(list(BX))
+    for tb, (nm, d) in zip(bx_tabs, BX.items()):
+        with tb:
+            st.caption(d["why"])
+            st.markdown("**Full prompt**")
+            st.code(d["prompt"], language="text", wrap_lines=True)
+            st.markdown("**Typical answer**")
+            st.code(d["answer"], language="text", wrap_lines=True)
+            r = run_live(f"🟢 Run the {nm} example", lambda p=d["prompt"]: generate(p)[0], key=f"m3_bx_{nm}")
+            if r:
+                with st.container(border=True):
+                    st.caption("LIVE output")
+                    st.markdown(r)
 
 with tabs[5]:
     st.subheader("Dynamic prompting — prompts that adapt like a good waiter")
@@ -246,6 +324,144 @@ with tabs[5]:
                 st.markdown(res)
     st.markdown("**Where it's used:** chatbots (prompt built from the last message) · personalisation (“Hi Rahul, based on "
                 "your last booking to Jaipur…”) · chaining (summary → cover letter → interview questions) · app templates.")
+    st.markdown("---")
+    st.markdown("#### The 4 types of dynamic prompting — with more realistic examples")
+    st.caption("In each one, **code builds the prompt** from live data (history, profile, previous output, rules). "
+               "The exact prompt is always shown; the 🟢 buttons run it and show the prompt that was sent.")
+    d_tabs = st.tabs(["💬 1 · Chatbot", "🎯 2 · Personalised", "🔗 3 · Chaining", "🧩 4 · Template + rules"])
+
+    # ---- 1. chatbot -------------------------------------------------------
+    with d_tabs[0]:
+        st.markdown("**Idea:** in a multi-turn chat the prompt is rebuilt every turn from the **history + the latest message + "
+                    "detected intent + customer data**.")
+        SC = {
+            "Payment page keeps failing": ("payment", "I tried to pay on your site twice and the page just spins. Money left my card!"),
+            "Where is my refund?": ("refund", "I returned my shoes 10 days ago and still have no refund."),
+            "Can't log in": ("login", "I reset my password but the login still says invalid credentials."),
+        }
+        pick = st.selectbox("Customer's latest message", list(SC), key="m3_dyn_chat_pick")
+        tier = st.radio("Customer tier", ["Standard", "Premium"], horizontal=True, key="m3_dyn_tier")
+        INTENT_RULES = {"payment": "Ask for the card's last 4 digits and the time of the attempt. Explain that a pending charge "
+                                   "usually drops within 3–5 days. Offer to escalate to the payments team.",
+                        "refund": "Look at the return date. Refunds take 7 working days after the warehouse receives the item. "
+                                  "If it has been longer, apologise and open a refund trace.",
+                        "login": "Offer a magic-link login. Do NOT ask for the password. Mention checking the email used at sign-up."}
+        intent, msg = SC[pick]
+        history = [("Customer", "Hi, I have a problem with my order #4821."), ("Bot", "Sorry to hear that! What happened?"), ("Customer", msg)]
+
+        def build_chat_prompt():
+            hist = "\n".join(f"{who}: {t}" for who, t in history)
+            tone = "Warm and priority-handling; offer a callback." if tier == "Premium" else "Friendly and concise."
+            return (f"You are a customer-support assistant for an online store.\nDetected intent: {intent}\n"
+                    f"Customer tier: {tier}  →  Tone: {tone}\n\nConversation so far:\n{hist}\n\n"
+                    f"Policy for this intent: {INTENT_RULES[intent]}\n\n"
+                    "Reply to the customer's LAST message in at most 4 sentences. End with one clear next step.")
+        chat_prompt = build_chat_prompt()
+        st.markdown("**Prompt built by code this turn:**")
+        st.code(chat_prompt, language="text", wrap_lines=True)
+        st.code('''intent = detect_intent(last_message)        # keyword rules or a small classifier
+prompt = SYSTEM + f"Tier: {tier}" + format(history) + POLICY[intent]''', language="python")
+        st.caption("Change the message or tier above and the prompt changes with it — nothing is hand-written per case.")
+        r = run_live("🟢 Get the bot's reply", lambda: generate(chat_prompt)[0], key="m3_dyn_chat")
+        if r:
+            with st.container(border=True):
+                st.markdown(r)
+
+    # ---- 2. personalised --------------------------------------------------
+    with d_tabs[1]:
+        st.markdown("**Idea:** the prompt is filled from **user history and preferences**, and code adds or drops instructions "
+                    "depending on the data.")
+        c1, c2, c3 = st.columns(3)
+        name = c1.text_input("Name", "Rahul", key="m3_dyn_name")
+        last = c2.text_input("Last booking", "Hotel in Jaipur, ₹6,500/night, rated 3.9★", key="m3_dyn_last")
+        budget = c3.slider("Budget per night (₹)", 2000, 15000, 7000, 500, key="m3_dyn_budget")
+        c4, c5 = st.columns(2)
+        trip = c4.selectbox("Trip type", ["Family holiday", "Business trip", "Solo backpacking"], key="m3_dyn_trip")
+        past = c5.multiselect("Past complaints", ["noisy rooms", "far from centre", "slow wifi", "poor breakfast"],
+                              default=["noisy rooms"], key="m3_dyn_past")
+        extra = []
+        if past:
+            extra.append("Avoid properties with reviews mentioning: " + ", ".join(past) + ".")
+        if trip == "Business trip":
+            extra.append("Prioritise fast wifi, a desk and a central location.")
+        elif trip == "Family holiday":
+            extra.append("Prioritise family rooms, a pool and kid-friendly food.")
+        else:
+            extra.append("Prioritise hostels or budget stays with a social common area.")
+        if budget < 4000:
+            extra.append("Stay strictly within budget; flag any hidden fees.")
+        pers_prompt = (f"Hi {name}, based on your last booking — {last} — suggest 3 hotels in Udaipur with better ratings "
+                       f"and a similar price (max ₹{budget:,}/night).\n" + "\n".join(extra) +
+                       "\nFormat: a table with Hotel | Why it fits you | Price | Rating. Add one line at the end on what changed vs the Jaipur stay.")
+        st.markdown("**Prompt built from this user's data:**")
+        st.code(pers_prompt, language="text", wrap_lines=True)
+        st.caption("Add a complaint or change the trip type — extra rules appear/disappear. Same code, different prompt per user.")
+        r = run_live("🟢 Get personalised suggestions", lambda: generate(pers_prompt)[0], key="m3_dyn_pers")
+        if r:
+            with st.container(border=True):
+                st.markdown(r)
+
+    # ---- 3. chaining ------------------------------------------------------
+    with d_tabs[2]:
+        st.markdown("**Idea:** each step's **output becomes part of the next prompt**. The later prompts don't exist until the earlier "
+                    "ones have run.")
+        resume = st.text_area("Resume text", "Asha Rao — 4 years as a backend developer at a fintech startup. Built payment APIs in Python/FastAPI "
+                              "handling 2M transactions a day, cut p95 latency by 40%, mentored 2 juniors. B.Tech CSE. Looking for a senior role in a product company.",
+                              key="m3_dyn_resume", height=110)
+        job = st.text_input("Target role", "Senior Backend Engineer at a payments company", key="m3_dyn_job")
+        st.markdown("**Step 1 prompt**")
+        st.code(f"Summarize this resume in 3 bullet points focusing on measurable achievements:\n\n{resume}", language="text", wrap_lines=True)
+        st.markdown("**Step 2 prompt** (built from Step 1's output)")
+        st.code(f"Based on this summary:\n<OUTPUT OF STEP 1>\n\nWrite a 120-word cover letter for the role: {job}.", language="text", wrap_lines=True)
+        st.markdown("**Step 3 prompt** (built from Step 1's output again)")
+        st.code(f"Based on this summary:\n<OUTPUT OF STEP 1>\n\nSuggest 3 interview questions an interviewer for '{job}' would ask, "
+                "each with what a strong answer should include.", language="text", wrap_lines=True)
+        st.caption("`<OUTPUT OF STEP 1>` is replaced at run time. After you run it, the 'Exact prompts' box shows the filled-in versions.")
+
+        def _chain():
+            s1 = generate(f"Summarize this resume in 3 bullet points focusing on measurable achievements:\n\n{resume}")[0]
+            s2 = generate(f"Based on this summary:\n{s1}\n\nWrite a 120-word cover letter for the role: {job}.")[0]
+            s3 = generate(f"Based on this summary:\n{s1}\n\nSuggest 3 interview questions an interviewer for '{job}' would ask, "
+                          "each with what a strong answer should include.")[0]
+            return s1, s2, s3
+        r = run_live("🟢 Run the 3-step chain (3 calls)", _chain, key="m3_dyn_chain")
+        if r:
+            for t, x in zip(["① Summary", "② Cover letter", "③ Interview questions"], r):
+                with st.container(border=True):
+                    st.caption(t)
+                    st.markdown(x)
+
+    # ---- 4. template + rules ---------------------------------------------
+    with d_tabs[3]:
+        st.markdown("**Idea:** a reusable template with **variables** plus **if/else rules** that add instructions — the way real "
+                    "product features generate prompts from dropdowns and toggles.")
+        c1, c2, c3 = st.columns(3)
+        role_v = c1.selectbox("Role", ["social media strategist", "technical writer", "sales copywriter"], key="m3_t4_role")
+        fmt_v = c2.selectbox("Format", ["3-line Instagram caption", "release-notes paragraph", "email subject + 2-line body"], key="m3_t4_fmt")
+        goal_v = c3.selectbox("Goal", ["increase engagement", "reduce support tickets", "drive demo sign-ups"], key="m3_t4_goal")
+        brief = st.text_area("Input brief", "We're launching an offline mode for our notes app: notes sync automatically when you're back online. "
+                             "Available on iOS and Android from Monday.", key="m3_t4_brief", height=80)
+        c4, c5, c6 = st.columns(3)
+        audience_v = c4.radio("Audience", ["Beginners", "Experts"], horizontal=True, key="m3_t4_aud")
+        emoji = c5.checkbox("Use emojis", True, key="m3_t4_emoji")
+        as_json = c6.checkbox("Return JSON", False, key="m3_t4_json")
+        rules = []
+        rules.append("Avoid jargon; explain in everyday words." if audience_v == "Beginners" else "Use precise technical wording; no hand-holding.")
+        rules.append("Use 1–2 relevant emojis." if emoji else "Do not use emojis.")
+        if goal_v == "drive demo sign-ups":
+            rules.append("End with a clear call to action: 'Book a demo'.")
+        if as_json:
+            rules.append('Return ONLY valid JSON: {"text": "...", "tone": "..."}')
+        t4 = (f"You are a {role_v}. Based on this brief, write a {fmt_v} that will {goal_v}.\n\nBrief: {brief}\n\n"
+              "Rules:\n" + "\n".join(f"- {x}" for x in rules))
+        st.markdown("**Template (the fixed part)**")
+        st.code("You are a [role]. Based on this [input], write a [format] that will [goal].\n\nRules:\n[rules chosen by code]", language="text")
+        st.markdown("**Final prompt after filling variables and applying rules**")
+        st.code(t4, language="text", wrap_lines=True)
+        r = run_live("🟢 Run this prompt", lambda: generate(t4)[0], key="m3_t4_run")
+        if r:
+            with st.container(border=True):
+                st.markdown(r)
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +472,7 @@ with tabs[6]:
         "Craft with clarity, specificity, tone, constraints and intent framing.",
         "Zero-shot for simple tasks, few-shot to teach a pattern, role-based for tone and expertise — combine them.",
         "Real apps build prompts dynamically from templates and user context.",
+        "Four types: chatbot (history + intent), personalised (user data + rules), chaining (output → next prompt), templates + if/else rules.",
     ])
 
 

@@ -75,6 +75,50 @@ with tabs[1]:
         st.markdown("- No control over reasoning **format/style** → inconsistent across runs\n"
                     "- Fails on **unfamiliar** tasks\n- No guarantee the steps are actually logical\n"
                     "- Can't follow *your* custom method unless you **show** it → few-shot CoT")
+    st.markdown("---")
+    st.markdown("#### More complex CoT examples (full prompts)")
+    cot_tabs = st.tabs(["Zero-shot CoT · multi-step maths", "Few-shot CoT · structured reasoning"])
+    with cot_tabs[0]:
+        COT0 = ("A laptop is listed at ₹60,000. A 15% discount is applied first, then 18% GST is added on the discounted price. "
+                "Three friends split the final price equally. How much does each pay?\n\nLet's think step by step. "
+                "End with a line: Final answer: ₹<amount>")
+        st.markdown("**Full prompt**")
+        st.code(COT0, language="text", wrap_lines=True)
+        st.markdown("**Typical answer**")
+        st.code("Step 1: Discount = 15% of 60,000 = 9,000 → price after discount = 51,000\n"
+                "Step 2: GST = 18% of 51,000 = 9,180 → final price = 60,180\n"
+                "Step 3: Split by 3 → 60,180 ÷ 3 = 20,060\nFinal answer: ₹20,060", language="text")
+        st.caption("Without the cue, models often apply GST to the original price (₹70,800 → ₹23,600 each) — the order of steps is the trap.")
+        r = run_live("🟢 Run zero-shot CoT", lambda: generate(COT0)[0], key="m4_cot0")
+        if r:
+            with st.container(border=True):
+                st.markdown(r)
+    with cot_tabs[1]:
+        COT1 = """You are a QA analyst. For each bug report decide the severity (Critical/Major/Minor).
+Use exactly this format:
+Report: <text>
+Reasoning: <1) impact, 2) how many users, 3) workaround?>
+Severity: <label>
+
+Report: App crashes on launch for all Android 14 users.
+Reasoning: 1) App unusable. 2) All Android 14 users. 3) No workaround.
+Severity: Critical
+
+Report: Profile photo is blurry on tablets only.
+Reasoning: 1) Cosmetic. 2) Tablet users only. 3) Works fine on phones.
+Severity: Minor
+
+Report: Payment succeeds but the order confirmation email is delayed by up to 2 hours for about 10% of users.
+Reasoning:"""
+        st.markdown("**Full prompt** (the examples teach the 3-point reasoning template)")
+        st.code(COT1, language="text", wrap_lines=True)
+        st.markdown("**Typical answer**")
+        st.code("1) Money is taken and orders work, but users get no timely proof of purchase. 2) About 10% of users. "
+                "3) The order can be seen in the account page, so a workaround exists.\nSeverity: Major", language="text", wrap_lines=True)
+        r = run_live("🟢 Run few-shot CoT", lambda: generate(COT1)[0], key="m4_cot1")
+        if r:
+            with st.container(border=True):
+                st.markdown("**Reasoning:** " + r.strip())
 
 with tabs[2]:
     st.subheader("Few-shot CoT — teach by demonstration")
@@ -289,6 +333,21 @@ with tabs[4]:
                 st.markdown(o[0] or o[1])
     st.info("Limitation: Self-consistency is great when there's **one** right answer (math, facts, classification). For "
             "open-ended tasks it's like flipping a coin 10 times — you need Tree-of-Thought.")
+    st.markdown("---")
+    st.markdown("#### More complex self-consistency example (full prompt + 5 paths)")
+    SC_P = ("A shop sells pens in packs of 6 for ₹45, and single pens for ₹9 each. What is the cheapest way to buy at least 20 pens, "
+            "and what does it cost?\n\nLet's think step by step. End with: Final answer: <cost>")
+    st.markdown("**Full prompt (sent 5 times)**")
+    st.code(SC_P, language="text", wrap_lines=True)
+    sc_paths = [("3 packs = 18 pens (₹135) + 2 singles (₹18) = 20 pens", "₹153"),
+                ("4 packs = 24 pens, cost 4 × 45", "₹180"),
+                ("20 singles × 9", "₹180"),
+                ("Pack is ₹7.5/pen vs ₹9 single, so use 3 packs (18) then 2 singles: 135 + 18", "₹153"),
+                ("Compare 3 packs + 2 singles (153) with 4 packs (180): 153 is cheaper", "₹153")]
+    for i, (r_, a_) in enumerate(sc_paths, 1):
+        st.markdown(f"Path {i}: *{r_}* → **{a_}**")
+    v = Counter(a for _, a in sc_paths)
+    st.success(f"Majority vote: **{v.most_common(1)[0][0]}** ({v.most_common(1)[0][1]}/5) — paths 2 and 3 are valid purchases but not the cheapest; the vote filters them out.")
 
 with tabs[5]:
     st.subheader("Tree-of-Thought — think like a planner")
@@ -319,6 +378,40 @@ digraph { rankdir=TB; node [shape=box style="rounded,filled" fontname="Helvetica
         with c2.container(border=True):
             st.caption("Step 3 · evaluate, prune, select")
             st.markdown(res[1])
+    st.markdown("---")
+    st.markdown("#### More complex ToT example: planning with constraints (3 prompts)")
+    TOT_BRIEF = ("Plan a 2-day offsite for 20 people near Pune. Budget ₹1,50,000 total. Must include one team-building activity "
+                 "and one learning session. Two team members are vegetarian. No travel longer than 2 hours.")
+    T1 = f"{TOT_BRIEF}\n\nStep 1 — Propose 3 clearly different themes (e.g. adventure, wellness, workshop-heavy). One line each."
+    T2 = ("For each theme below, expand into a mini-plan: venue type, day-1/day-2 outline, rough cost split. "
+          "Then score Fit-to-constraints, Cost and Team-benefit from 1-10 and name one risk.\n\n<THEMES FROM PROMPT 1>")
+    T3 = "Compare the scored plans. Eliminate the weakest, merge any good ideas from it into the winner, and output the final plan with total cost.\n\n<MINI-PLANS FROM PROMPT 2>"
+    st.markdown("**Prompt 1 — generate branches**")
+    st.code(T1, language="text", wrap_lines=True)
+    st.markdown("**Prompt 2 — expand and evaluate each branch**")
+    st.code(T2, language="text", wrap_lines=True)
+    st.markdown("**Prompt 3 — prune and select**")
+    st.code(T3, language="text", wrap_lines=True)
+    st.markdown("**Typical flow of results**")
+    st.code("""P1 → A) Adventure (trek + camp)   B) Wellness retreat (yoga + talks)   C) Workshop-heavy (hackathon + games)
+P2 → A: Fit 6 (camp meals hard for vegetarians), Cost 8, Benefit 8, risk: weather
+     B: Fit 9, Cost 6, Benefit 7, risk: slow pace
+     C: Fit 8, Cost 9, Benefit 6, risk: feels like work
+P3 → Drop C. Keep B as base, add a half-day team-building trek from A. Final: ~₹1.42 L, resort 90 min from Pune,
+     Day 1 yoga + learning session, Day 2 trek + dinner, vegetarian meals confirmed.""", language="text", wrap_lines=True)
+    st.caption("Self-consistency would just vote on one answer here; ToT keeps several partial plans alive, scores them and merges the best parts.")
+
+    def _tot2():
+        a = generate(T1)[0]
+        b = generate(T2.replace("<THEMES FROM PROMPT 1>", a))[0]
+        c = generate(T3.replace("<MINI-PLANS FROM PROMPT 2>", b))[0]
+        return a, b, c
+    r = run_live("🟢 Run the 3-prompt ToT (3 calls)", _tot2, key="m4_tot_plan")
+    if r:
+        for t_, x in zip(["① Branches", "② Expanded and scored", "③ Pruned and selected"], r):
+            with st.container(border=True):
+                st.caption(t_)
+                st.markdown(x)
 
 with tabs[6]:
     st.subheader("ReAct — Reason + Act (think, use a tool, observe, repeat)")
