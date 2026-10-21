@@ -20,7 +20,7 @@ page_header(
 )
 
 tabs = st.tabs(["Why basic prompting fails", "Chain-of-Thought", "Few-shot CoT & bias", "Auto-CoT",
-                "🗳️ Self-Consistency", "🌳 Tree-of-Thought", "Which technique?"])
+                "🗳️ Self-Consistency", "🌳 Tree-of-Thought", "Which technique?", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     analogy("First you tell an intern “just do this”, then you show examples, then you ask them to think like an expert. "
@@ -239,26 +239,31 @@ with tabs[6]:
     }
     st.success(rec[task])
 
-takeaway([
-    "Basic prompting guesses; advanced prompting makes the model reason, plan and justify.",
-    "CoT: step-by-step reasoning (zero-shot cue, few-shot examples, or Auto-CoT self-generated examples).",
-    "Few-shot examples can bias the model — choose them carefully.",
-    "Self-Consistency samples multiple reasoning paths and takes the majority — reliability for single-answer tasks.",
-    "Tree-of-Thought branches, evaluates and prunes — for creative and strategic problems.",
-])
 
-quiz("m4", [
-    {"q": "What does “Let's think step by step” mainly do?",
-     "options": ["Gives the model internet access", "Triggers a learned multi-step reasoning pattern", "Lowers the temperature", "Adds memory"],
-     "answer": 1, "why": "The cue nudges the model into the reasoning pattern it saw in training."},
-    {"q": "Self-Consistency picks the final answer by…",
-     "options": ["Taking the longest answer", "Majority vote over several sampled reasoning paths", "Asking a human", "Using temperature 0"],
-     "answer": 1, "why": "The most frequent final answer is assumed to be most reliable."},
-    {"q": "Which technique fits “write three alternative endings and pick the most original”?",
-     "options": ["Zero-shot", "Self-Consistency", "Tree-of-Thought", "One-shot"], "answer": 2,
-     "why": "Multiple valid paths that must be compared and pruned."},
-    {"q": "Phase 1 of Auto-CoT is…",
-     "options": ["Solving the target question", "The model generating and solving its own example problems",
-                 "A human writing examples", "Fine-tuning the model"], "answer": 1,
-     "why": "It's a warm-up that builds a self-made few-shot context."},
-])
+# ---------------------------------------------------------------------------
+with tabs[7]:
+    takeaway([
+        "Basic prompting guesses; advanced prompting makes the model reason, plan and justify.",
+        "CoT: step-by-step reasoning (zero-shot cue, few-shot examples, or Auto-CoT self-generated examples).",
+        "Few-shot examples can bias the model — choose them carefully.",
+        "Self-Consistency samples multiple reasoning paths and takes the majority — reliability for single-answer tasks.",
+        "Tree-of-Thought branches, evaluates and prunes — for creative and strategic problems.",
+    ])
+
+
+with tabs[8]:
+    quiz("m4", [
+        {"q": "What does “Let's think step by step” mainly do?",
+         "options": ["Gives the model internet access", "Triggers a learned multi-step reasoning pattern", "Lowers the temperature", "Adds memory"],
+         "answer": 1, "why": "The cue nudges the model into the reasoning pattern it saw in training."},
+        {"q": "Self-Consistency picks the final answer by…",
+         "options": ["Taking the longest answer", "Majority vote over several sampled reasoning paths", "Asking a human", "Using temperature 0"],
+         "answer": 1, "why": "The most frequent final answer is assumed to be most reliable."},
+        {"q": "Which technique fits “write three alternative endings and pick the most original”?",
+         "options": ["Zero-shot", "Self-Consistency", "Tree-of-Thought", "One-shot"], "answer": 2,
+         "why": "Multiple valid paths that must be compared and pruned."},
+        {"q": "Phase 1 of Auto-CoT is…",
+         "options": ["Solving the target question", "The model generating and solving its own example problems",
+                     "A human writing examples", "Fine-tuning the model"], "answer": 1,
+         "why": "It's a warm-up that builds a self-made few-shot context."},
+    ])

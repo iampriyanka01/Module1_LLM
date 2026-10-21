@@ -18,7 +18,7 @@ page_header(
 )
 
 tabs = st.tabs(["What is a prompt?", "🧱 Prompt builder", "📉 Loss in the middle", "🎨 Crafting",
-                "🧪 Technique lab", "⚙️ Dynamic prompting"])
+                "🧪 Technique lab", "⚙️ Dynamic prompting", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     definition("Prompt", "the instruction or input you give a language model to get a response.")
@@ -240,24 +240,29 @@ with tabs[5]:
     st.markdown("**Where it's used:** chatbots (prompt built from the last message) · personalisation (“Hi Rahul, based on "
                 "your last booking to Jaipur…”) · chaining (summary → cover letter → interview questions) · app templates.")
 
-takeaway([
-    "A great prompt = Role + Instruction + Input + Output format.",
-    "Put critical instructions first, repeat them at the end, format clearly, split long tasks.",
-    "Craft with clarity, specificity, tone, constraints and intent framing.",
-    "Zero-shot for simple tasks, few-shot to teach a pattern, role-based for tone and expertise — combine them.",
-    "Real apps build prompts dynamically from templates and user context.",
-])
 
-quiz("m3", [
-    {"q": "Which component tells the model how the answer should look?",
-     "options": ["Role", "Instruction", "Input", "Output format"], "answer": 3,
-     "why": "Output format defines tone, length, structure (bullets, JSON, table…)."},
-    {"q": "A key rule hidden in the middle of a 3-page prompt is ignored. This is…",
-     "options": ["Hallucination", "Loss in the middle", "Overfitting", "Mode collapse"], "answer": 1,
-     "why": "Models attend most to the start and end of long prompts."},
-    {"q": "You show the model 3 labelled examples before the real input. That's…",
-     "options": ["Zero-shot", "One-shot", "Few-shot", "Role-based"], "answer": 2, "why": "2–5 examples = few-shot."},
-    {"q": "“Summarize this {topic} for a {audience} audience” filled in by code is…",
-     "options": ["Dynamic prompting", "RLHF", "Tokenization", "Chain-of-thought"], "answer": 0,
-     "why": "Templates + runtime values = dynamic prompts."},
-])
+# ---------------------------------------------------------------------------
+with tabs[6]:
+    takeaway([
+        "A great prompt = Role + Instruction + Input + Output format.",
+        "Put critical instructions first, repeat them at the end, format clearly, split long tasks.",
+        "Craft with clarity, specificity, tone, constraints and intent framing.",
+        "Zero-shot for simple tasks, few-shot to teach a pattern, role-based for tone and expertise — combine them.",
+        "Real apps build prompts dynamically from templates and user context.",
+    ])
+
+
+with tabs[7]:
+    quiz("m3", [
+        {"q": "Which component tells the model how the answer should look?",
+         "options": ["Role", "Instruction", "Input", "Output format"], "answer": 3,
+         "why": "Output format defines tone, length, structure (bullets, JSON, table…)."},
+        {"q": "A key rule hidden in the middle of a 3-page prompt is ignored. This is…",
+         "options": ["Hallucination", "Loss in the middle", "Overfitting", "Mode collapse"], "answer": 1,
+         "why": "Models attend most to the start and end of long prompts."},
+        {"q": "You show the model 3 labelled examples before the real input. That's…",
+         "options": ["Zero-shot", "One-shot", "Few-shot", "Role-based"], "answer": 2, "why": "2–5 examples = few-shot."},
+        {"q": "“Summarize this {topic} for a {audience} audience” filled in by code is…",
+         "options": ["Dynamic prompting", "RLHF", "Tokenization", "Chain-of-thought"], "answer": 0,
+         "why": "Templates + runtime values = dynamic prompts."},
+    ])

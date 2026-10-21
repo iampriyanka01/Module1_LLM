@@ -23,7 +23,7 @@ page_header(
 )
 
 tabs = st.tabs(["Why LangChain?", "Capabilities", "⚡ Streaming", "📦 Batch input", "🧱 Pydantic validation",
-                "🩹 Handling failures", "🚧 Guardrails"])
+                "🩹 Handling failures", "🚧 Guardrails", "🧾 Key takeaways", "✅ Knowledge check"])
 
 # ---------------------------------------------------------------------------
 with tabs[0]:
@@ -393,22 +393,27 @@ with tabs[6]:
         st.caption("The Rail fixes one category per pass here to make the loop visible; real systems (e.g. Guardrails AI, NeMo Guardrails) "
                    "combine rule-based and LLM-based checkers.")
 
-takeaway([
-    "LangChain packages prompts, chains, memory, tools, retrieval, streaming, batching and deployment.",
-    "Streaming cuts perceived latency; async streaming keeps apps responsive for many users.",
-    "Batching processes many inputs at once with cleaner code (`.batch()` / `.abatch()`).",
-    "Validate every structured output with Pydantic; plan for failure with try/except, logging, retries, fallbacks and cleanup.",
-    "Guardrails = Checker (detect) → Corrector (fix) → Rail (loop) → Guard (approve + audit).",
-])
 
-quiz("m6", [
-    {"q": "Main UX benefit of streaming?", "options": ["Lower token cost", "Users see the answer start almost immediately",
-     "Better accuracy", "No API key needed"], "answer": 1, "why": "Time-to-first-token drops; total time is similar."},
-    {"q": "`.abatch()` differs from `.batch()` because it…", "options": ["Is cheaper", "Is non-blocking (async)", "Uses no tokens", "Validates JSON"],
-     "answer": 1, "why": "Async lets your app keep working while the batch runs."},
-    {"q": "Pydantic receives `\"age\": \"twenty\"` for an `int` field. What happens?", "options": ["Silently stores 'twenty'",
-     "Converts to 20 automatically", "Raises a ValidationError", "Deletes the field"], "answer": 2,
-     "why": "\"25\" can be coerced; words can't — handle it with cleanup or a retry."},
-    {"q": "Which guardrail component only flags problems?", "options": ["Checker", "Corrector", "Rail", "Guard"], "answer": 0,
-     "why": "The Checker is the watchdog; the Corrector fixes."},
-])
+# ---------------------------------------------------------------------------
+with tabs[7]:
+    takeaway([
+        "LangChain packages prompts, chains, memory, tools, retrieval, streaming, batching and deployment.",
+        "Streaming cuts perceived latency; async streaming keeps apps responsive for many users.",
+        "Batching processes many inputs at once with cleaner code (`.batch()` / `.abatch()`).",
+        "Validate every structured output with Pydantic; plan for failure with try/except, logging, retries, fallbacks and cleanup.",
+        "Guardrails = Checker (detect) → Corrector (fix) → Rail (loop) → Guard (approve + audit).",
+    ])
+
+
+with tabs[8]:
+    quiz("m6", [
+        {"q": "Main UX benefit of streaming?", "options": ["Lower token cost", "Users see the answer start almost immediately",
+         "Better accuracy", "No API key needed"], "answer": 1, "why": "Time-to-first-token drops; total time is similar."},
+        {"q": "`.abatch()` differs from `.batch()` because it…", "options": ["Is cheaper", "Is non-blocking (async)", "Uses no tokens", "Validates JSON"],
+         "answer": 1, "why": "Async lets your app keep working while the batch runs."},
+        {"q": "Pydantic receives `\"age\": \"twenty\"` for an `int` field. What happens?", "options": ["Silently stores 'twenty'",
+         "Converts to 20 automatically", "Raises a ValidationError", "Deletes the field"], "answer": 2,
+         "why": "\"25\" can be coerced; words can't — handle it with cleanup or a retry."},
+        {"q": "Which guardrail component only flags problems?", "options": ["Checker", "Corrector", "Rail", "Guard"], "answer": 0,
+         "why": "The Checker is the watchdog; the Corrector fixes."},
+    ])

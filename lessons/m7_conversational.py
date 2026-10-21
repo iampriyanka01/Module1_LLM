@@ -24,7 +24,7 @@ page_header(
 )
 
 tabs = st.tabs(["Why plain prompts fail", "Roles & messages", "🎭 System-prompt playground", "Under the hood",
-                "🧠 Memory & context window", "✂️ Context strategies", "💬 Your auto-summary chatbot", "OpenAI-compatible code"])
+                "🧠 Memory & context window", "✂️ Context strategies", "💬 Your auto-summary chatbot", "OpenAI-compatible code", "🧾 Key takeaways", "✅ Knowledge check"])
 
 # ---------------------------------------------------------------------------
 with tabs[0]:
@@ -391,23 +391,28 @@ print(response.choices[0].message.content)""", language="python")
     compare("Google GenAI SDK roles", "`user` and **`model`** (system goes in `system_instruction`)",
             "OpenAI-style roles", "`system`, `user`, **`assistant`**", bad_good=False)
 
-takeaway([
-    "Plain prompts have no memory, roles or persistent behaviour — Chat Completion adds structure.",
-    "Messages = role + content; roles are system (director), user (human), assistant (model).",
-    "The system prompt sets persona, tone and rules once for the whole session.",
-    "LLMs are stateless: 'memory' = re-sending history inside the context window.",
-    "Truncate, summarize or prioritize to fit the window — the same strategies cut token cost.",
-])
 
-quiz("m7", [
-    {"q": "Which role sets persona and rules for the whole conversation?", "options": ["user", "assistant", "system", "tool"],
-     "answer": 2, "why": "The system message is the invisible director."},
-    {"q": "How does a chat model “remember” your name from earlier?", "options": ["It stores it in its weights",
-     "The app re-sends the history in the prompt", "It searches the internet", "It has a long-term memory database"],
-     "answer": 1, "why": "Models are stateless; history lives in the prompt."},
-    {"q": "Your 8K-token chat exceeds the window. Simplest fix?", "options": ["Truncation — keep the last N messages",
-     "Raise the temperature", "Remove the system prompt", "Switch to greedy decoding"], "answer": 0,
-     "why": "A sliding window keeps the most recent turns (but may drop key facts)."},
-    {"q": "Summarizing old turns mainly saves…", "options": ["Accuracy", "Tokens (and cost) while keeping intent", "API keys", "Latency to zero"],
-     "answer": 1, "why": "Hundreds of tokens of backstory become a short summary."},
-])
+# ---------------------------------------------------------------------------
+with tabs[8]:
+    takeaway([
+        "Plain prompts have no memory, roles or persistent behaviour — Chat Completion adds structure.",
+        "Messages = role + content; roles are system (director), user (human), assistant (model).",
+        "The system prompt sets persona, tone and rules once for the whole session.",
+        "LLMs are stateless: 'memory' = re-sending history inside the context window.",
+        "Truncate, summarize or prioritize to fit the window — the same strategies cut token cost.",
+    ])
+
+
+with tabs[9]:
+    quiz("m7", [
+        {"q": "Which role sets persona and rules for the whole conversation?", "options": ["user", "assistant", "system", "tool"],
+         "answer": 2, "why": "The system message is the invisible director."},
+        {"q": "How does a chat model “remember” your name from earlier?", "options": ["It stores it in its weights",
+         "The app re-sends the history in the prompt", "It searches the internet", "It has a long-term memory database"],
+         "answer": 1, "why": "Models are stateless; history lives in the prompt."},
+        {"q": "Your 8K-token chat exceeds the window. Simplest fix?", "options": ["Truncation — keep the last N messages",
+         "Raise the temperature", "Remove the system prompt", "Switch to greedy decoding"], "answer": 0,
+         "why": "A sliding window keeps the most recent turns (but may drop key facts)."},
+        {"q": "Summarizing old turns mainly saves…", "options": ["Accuracy", "Tokens (and cost) while keeping intent", "API keys", "Latency to zero"],
+         "answer": 1, "why": "Hundreds of tokens of backstory become a short summary."},
+    ])

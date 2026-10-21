@@ -119,7 +119,7 @@ TOOL_CARDS = [
 ]
 
 tabs = st.tabs(["Why tools?", "Types of tools", "🪪 Tool card anatomy", "🔄 Lifecycle", "🟢 Live tool loop",
-                "🌦️ Your weather script, reviewed", "⚡ Async fan-out / fan-in", "🧯 Error handling"])
+                "🌦️ Your weather script, reviewed", "⚡ Async fan-out / fan-in", "🧯 Error handling", "🧾 Key takeaways", "✅ Knowledge check"])
 
 # ---------------------------------------------------------------------------
 with tabs[0]:
@@ -488,22 +488,27 @@ with tabs[7]:
 }''', language="json")
     st.caption("Try it in the Async tab: tick “fails” or “bad schema”, untick fallback, and watch the payload.")
 
-takeaway([
-    "Tools overcome knowledge cutoff: retrieval (eyes), computation (calculator), action (hands).",
-    "A tool card = name + description + parameter schema (+ output structure); your function is the engine.",
-    "The LLM only emits a JSON call; your backend executes it and sends the result back for the final answer.",
-    "Dependent calls run sequentially; independent ones fan out in parallel and fan in.",
-    "Isolate failures, use timeouts, fall back gracefully, validate schemas, and tell the LLM what failed.",
-])
 
-quiz("m8", [
-    {"q": "Who actually executes the function in function calling?", "options": ["The LLM", "Your backend code", "The user", "The API key"],
-     "answer": 1, "why": "The model only suggests a structured call."},
-    {"q": "Which tool-card part helps the model decide WHEN to use a tool?", "options": ["Name", "Description", "Required list", "Output structure"],
-     "answer": 1, "why": "The description is the tool's job description."},
-    {"q": "“Tesla price in EUR” needs stock → currency. These calls should be…", "options": ["Parallel", "Sequential", "Skipped", "Cached forever"],
-     "answer": 1, "why": "The conversion needs the price first."},
-    {"q": "Weather and currency succeed but hotels times out. Best response?", "options": ["Show an error page",
-     "Return partial results and explain hotels are unavailable", "Retry forever", "Hide the failure"], "answer": 1,
-     "why": "Isolate failures and communicate them clearly."},
-])
+# ---------------------------------------------------------------------------
+with tabs[8]:
+    takeaway([
+        "Tools overcome knowledge cutoff: retrieval (eyes), computation (calculator), action (hands).",
+        "A tool card = name + description + parameter schema (+ output structure); your function is the engine.",
+        "The LLM only emits a JSON call; your backend executes it and sends the result back for the final answer.",
+        "Dependent calls run sequentially; independent ones fan out in parallel and fan in.",
+        "Isolate failures, use timeouts, fall back gracefully, validate schemas, and tell the LLM what failed.",
+    ])
+
+
+with tabs[9]:
+    quiz("m8", [
+        {"q": "Who actually executes the function in function calling?", "options": ["The LLM", "Your backend code", "The user", "The API key"],
+         "answer": 1, "why": "The model only suggests a structured call."},
+        {"q": "Which tool-card part helps the model decide WHEN to use a tool?", "options": ["Name", "Description", "Required list", "Output structure"],
+         "answer": 1, "why": "The description is the tool's job description."},
+        {"q": "“Tesla price in EUR” needs stock → currency. These calls should be…", "options": ["Parallel", "Sequential", "Skipped", "Cached forever"],
+         "answer": 1, "why": "The conversion needs the price first."},
+        {"q": "Weather and currency succeed but hotels times out. Best response?", "options": ["Show an error page",
+         "Return partial results and explain hotels are unavailable", "Retry forever", "Hide the failure"], "answer": 1,
+         "why": "Isolate failures and communicate them clearly."},
+    ])

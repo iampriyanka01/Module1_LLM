@@ -5,7 +5,84 @@ import streamlit as st
 
 from core import sim
 from core.llm import generate, get_client, get_model, run_live
-from core.ui import analogy, cards, compare, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, compare, definition, page_header, quiz, takeaway
+
+
+# ---------------------------------------------------------------------------
+# Diagrams for "How LLMs are built": one overview + one detail picture per step
+# ---------------------------------------------------------------------------
+_NODE = 'node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=16 margin="0.2,0.12" color="#475569" penwidth=1.4];'
+_EDGE = 'edge [color="#475569" fontname="Helvetica" fontsize=14 penwidth=1.4];'
+_LOOP = 'color="#dc2626" fontcolor="#dc2626" style=dashed constraint=false'
+
+
+def build_overview_html(stage: int) -> str:
+    """Pipeline as a row of chips; the active stage (1-3) is orange."""
+    def chip(text, kind, active=False):
+        bg = "#fb923c" if active else {"proc": "#e2e8f0", "data": "#f1f5f9", "base": "#dbeafe", "sft": "#bfdbfe", "done": "#86efac"}[kind]
+        bd = "3px solid #c2410c" if active else "1px solid #64748b"
+        return (f"<div style='background:{bg};color:#111;border:{bd};border-radius:10px;padding:6px 7px;"
+                f"text-align:center;font-size:0.8rem;line-height:1.2'>{text}</div>")
+    arrow = "<div style='font-size:1.1rem;color:#64748b'>→</div>"
+    items = [chip("Internet-scale<br>text", "data"), chip("<b>Stage 1</b><br>Pre-training", "proc", stage == 1),
+             chip("Base model<br><small>completes text</small>", "base"), chip("<b>Stage 2</b><br>Supervised<br>fine-tuning", "proc", stage == 2),
+             chip("SFT model<br><small>follows instructions</small>", "sft"), chip("<b>Stage 3</b><br>RLHF", "proc", stage == 3),
+             chip("Aligned assistant<br><small>helpful · polite · safe</small>", "done")]
+    row = arrow.join(items)
+    return f"<div style='display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:6px 0 14px 0'>{row}</div>"
+
+
+BUILD_DETAIL = {
+    0: ("digraph { pad=0.4; rankdir=LR; " + _NODE + " " + _EDGE + """
+      W [label="Wikipedia" fillcolor="#f1f5f9"]; K [label="Books" fillcolor="#f1f5f9"]; N [label="News sites" fillcolor="#f1f5f9"];
+      R [label="Reddit · Stack Overflow\\nQuora" fillcolor="#f1f5f9"]; V [label="Product reviews" fillcolor="#f1f5f9"]; P [label="Research papers" fillcolor="#f1f5f9"];
+      C [label="Raw corpus\\nhundreds of billions of words" shape=cylinder fillcolor="#fed7aa"];
+      W -> C; K -> C; N -> C; R -> C; V -> C; P -> C; }"""),
+    1: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      C [label="Raw corpus\\n(ads, spam, junk)" shape=cylinder fillcolor="#fecaca"];
+      a [label="Remove\\nduplicates"]; b [label="Filter spam &\\nboilerplate"]; c [label="Strip unsafe /\\nirrelevant content"]; d [label="Normalise\\nformatting"];
+      O [label="Clean corpus" shape=cylinder fillcolor="#bbf7d0"];
+      C -> a -> b -> c -> d -> O; }"""),
+    2: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      T [label="Text:\\n'battery life lasts a day'" fillcolor="#f1f5f9"];
+      K [label="Tokens:\\n[bat] [tery] [ life] [ lasts] [ a] [ day]" fillcolor="#fde68a"];
+      I [label="Numeric IDs:\\n[4521] [9833] [1207] [8812] [64] [3150]" fillcolor="#bfdbfe"];
+      M [label="Model input" shape=ellipse fillcolor="#dbeafe"];
+      T -> K [label=" split into tokens"]; K -> I [label=" look up IDs"]; I -> M; }"""),
+    3: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      I [label="Token IDs of a sentence\\n'The battery life of iPhone 14 ...'" fillcolor="#f1f5f9"];
+      M [label="Transformer\\npredicts the next token" fillcolor="#dbeafe"];
+      G [label="Guess:\\n'is decent'" fillcolor="#fef9c3"]; R [label="Real next words:\\n'lasts a day'" fillcolor="#fef9c3"];
+      L [label="Loss\\n(how wrong?)" fillcolor="#fecaca"]; U [label="Update weights" fillcolor="#fecaca"];
+      B [label="Base GPT model" shape=ellipse fillcolor="#86efac"];
+      I -> M -> G -> L; R -> L; L -> U; U -> M [label=" repeat billions of times" """ + _LOOP + """];
+      U -> B [style=dotted label=" when trained"]; }"""),
+    4: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      D [label="SFT dataset\\nprompt -> ideal response\\n('Translate to Hindi: Climate change'\\n-> 'जलवायु परिवर्तन')" shape=note fillcolor="#fef9c3"];
+      B [label="Base model" shape=ellipse fillcolor="#dbeafe"];
+      O [label="Model's response" fillcolor="#f1f5f9"]; C [label="Compare with the\\ncorrect response\\n= loss" fillcolor="#fecaca"];
+      Z [label="Optimizer\\nadjusts weights" fillcolor="#fecaca"];
+      S [label="SFT model\\nfollows instructions" shape=ellipse fillcolor="#86efac"];
+      D -> B [label=" prompt"]; B -> O -> C; D -> C [style=dotted label=" correct answer"]; C -> Z; Z -> B [label=" millions of times" """ + _LOOP + """];
+      Z -> S [style=dotted label=" when trained"]; }"""),
+    5: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      P [label="Prompt:\\n'Explain depression to\\nsomeone going through it'" fillcolor="#f1f5f9"];
+      M [label="SFT model" shape=ellipse fillcolor="#bfdbfe"];
+      A [label="Answer A (clinical)\\nAnswer B (supportive)\\nAnswer C (short)\\nAnswer D (advice)" shape=note fillcolor="#fef9c3"];
+      H [label="Human reviewers\\nrank best to worst" shape=box fillcolor="#fed7aa"];
+      R [label="Ranked list:\\nB > C > A > D" shape=note fillcolor="#bbf7d0"];
+      P -> M -> A -> H -> R; }"""),
+    6: ("digraph { pad=0.4; rankdir=TB; " + _NODE + " " + _EDGE + """
+      R [label="Rankings" shape=note fillcolor="#fef9c3"]; W [label="Reward model\\n(a judge: scores text,\\ndoes not write it)" fillcolor="#fed7aa"];
+      P [label="Prompt" fillcolor="#f1f5f9"]; M [label="LLM" shape=ellipse fillcolor="#bfdbfe"];
+      O [label="Response" fillcolor="#f1f5f9"]; S [label="Score" fillcolor="#fef9c3"];
+      U [label="High score = reward\\nLow score = penalty\\n-> update (PPO)" fillcolor="#fecaca"];
+      OUT [label="Aligned assistant" shape=ellipse style=filled fillcolor="#86efac"];
+      R -> W [label=" trains"]; P -> M -> O -> W -> S -> U; U -> M [label=" thousands of times" """ + _LOOP + """];
+      U -> OUT [style=dotted label=" when trained"]; }"""),
+}
+BUILD_STAGE = [1, 1, 1, 1, 2, 3, 3]
+
 
 page_header(
     "m2",
@@ -20,7 +97,7 @@ page_header(
 )
 
 tabs = st.tabs(["What is an LLM?", "How LLMs are built", "🧮 Tokenization", "🏆 RLHF ranking game",
-                "Open vs closed", "Parameters & SLMs", "Good vs bad prompts", "Ethics"])
+                "Open vs closed", "Parameters & SLMs", "Good vs bad prompts", "Ethics", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     analogy("Your phone's predictive keyboard guesses your next word using only your messages. Now imagine a "
@@ -38,7 +115,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("From raw text to a helpful assistant — like a student becoming an expert")
-    stepper("llm_build", [
+    BUILD_STEPS = [
         ("Stage 1 · Generative pre-training — collect data",
          "**Challenge: the model doesn't know language.** Researchers gather *hundreds of billions of words* "
          "where humans express themselves: Wikipedia, books, news, Reddit/Stack Overflow/Quora, product reviews, "
@@ -57,7 +134,9 @@ with tabs[1]:
          "Feed **labeled prompt → ideal response** pairs written by humans, e.g. "
          "*“Translate to Hindi: Climate change” → “जलवायु परिवर्तन”*. The model answers, the answer is compared with "
          "the correct one (**loss**), and an **optimizer** updates the weights — millions of times. "
-         "Now it can answer questions, format output and stay on topic. It still lacks *judgment*."),
+         "Now it can answer questions, format answers (bullets, summaries), sound polite or concise and stay on topic. "
+         "Unlike Stage 1 (no labels), this is **supervised** learning: the correct answer is known. It still lacks *judgment*: "
+         "it can sound robotic, miss nuance or hallucinate."),
         ("Stage 3 · RLHF — collect human preferences",
          "The SFT model is like *a helpful intern with no common sense*: correct but blunt, overconfident, sometimes unsafe. "
          "It generates several answers per prompt; **humans rank them** best → worst."),
@@ -65,15 +144,37 @@ with tabs[1]:
          "Rankings train a **reward model** that *scores* text by how much humans would like it (it doesn't generate). "
          "The LLM generates → reward model scores → high score = reward, low = penalty → update (e.g. with **PPO**). "
          "Repeated thousands of times, the model learns to answer the way humans prefer: helpful, polite, safe."),
-    ])
-    st.graphviz_chart(
-        """
-digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica"];
- A [label="Internet-scale text" fillcolor="#f1f5f9"]; B [label="Base model\\n(next-token predictor)" fillcolor="#dbeafe"];
- C [label="SFT model\\n(follows instructions)" fillcolor="#bfdbfe"]; D [label="Aligned assistant\\n(helpful · polite · safe)" fillcolor="#86efac"];
- A -> B [label=" pre-training"]; B -> C [label=" labeled pairs"]; C -> D [label=" RLHF (human rankings)"]; }
-"""
-    )
+    ]
+    if "m2_build_step" not in st.session_state:
+        st.session_state["m2_build_step"] = 0
+    i = st.session_state["m2_build_step"]
+    st.progress((i + 1) / len(BUILD_STEPS), text=f"Step {i + 1} of {len(BUILD_STEPS)}")
+    title, body = BUILD_STEPS[i]
+    with st.container(border=True):
+        st.markdown(f"### {i + 1}. {title}")
+        st.markdown(body)
+    st.markdown("**The whole pipeline** (orange = the stage you are reading about)")
+    st.markdown(build_overview_html(BUILD_STAGE[i]), unsafe_allow_html=True)
+    st.markdown("**What happens in this step**")
+    _l, mid, _r = st.columns([1, 4, 1])
+    with mid:
+        st.graphviz_chart(BUILD_DETAIL[i], width="stretch")
+    st.caption("Red dashed arrows are the learning loop: the model is corrected and tries again.")
+    c1, c2, _ = st.columns([1, 1, 4])
+    if c1.button("◀ Back", key="m2_build_back", disabled=i == 0, width="stretch"):
+        st.session_state["m2_build_step"] -= 1
+        st.rerun()
+    if c2.button("Next ▶", key="m2_build_next", disabled=i == len(BUILD_STEPS) - 1, width="stretch"):
+        st.session_state["m2_build_step"] += 1
+        st.rerun()
+    with st.expander("After each stage, what can the model do?"):
+        st.dataframe(pd.DataFrame({
+            "Stage": ["1 · Pre-training", "2 · Supervised fine-tuning", "3 · RLHF"],
+            "Learns from": ["Hundreds of billions of words, no labels", "Human-written prompt → response pairs (supervised)", "Human rankings of its own answers"],
+            "Result": ["Base model: completes text, but ignores instructions, isn't polite, doesn't know true from false",
+                       "Follows instructions, formats answers, stays on topic; still blunt and lacks judgment",
+                       "Helpful, polite and safer; answers the way humans prefer"],
+        }), hide_index=True, width="stretch")
 
 with tabs[2]:
     st.subheader("Machines read numbers, not words")
@@ -129,6 +230,20 @@ with tabs[4]:
             "*Analogy:* a supercar you can only rent through the maker's app — you can't open the hood.\n\n"
             "**GPT-4** (OpenAI, ChatGPT) · **Claude** (Anthropic) · **Gemini** (Google DeepMind, multimodal)",
             bad_good=False)
+    with st.expander("Meet the models (with a typical use)"):
+        st.dataframe(pd.DataFrame({
+            "Model": ["Gemma (Google)", "LLaMA 3 (Meta)", "Qwen (Alibaba)", "BLOOM (BigScience)", "Falcon (TII, UAE)",
+                      "GPT-4 (OpenAI)", "Claude (Anthropic)", "Gemini (Google DeepMind)"],
+            "Type": ["Open", "Open", "Open", "Open", "Open", "Closed", "Closed", "Closed"],
+            "Known for": ["2B / 7B sizes, same research as Gemini, runs on local machines", "8B and 70B sizes, competes with closed models",
+                          "Multilingual (English, Chinese and more), enterprise-grade", "1000+ researchers, 40+ languages, AI democratisation",
+                          "40B+ parameters, trained on 1 trillion tokens", "Powers ChatGPT; used through the app or API",
+                          "Known for being ethical and safe; used in business tools", "Multimodal; integrated with Google Search and Workspace"],
+            "Example use": ["Student's offline study assistant", "AI teacher for rural schools, tuned on local textbooks",
+                            "English + Mandarin customer-support bot", "News summaries in Swahili and Bengali",
+                            "Private legal assistant for contract review", "Writing, coding, brainstorming", "Productivity and business apps",
+                            "Explain a diagram + summarise PDF notes from a voice question"],
+        }), hide_index=True, width="stretch")
     st.markdown("#### Comparison metrics")
     st.dataframe(pd.DataFrame({
         "Metric": ["Performance", "Accessibility", "Customization", "Community", "Infrastructure"],
@@ -148,6 +263,10 @@ with tabs[4]:
 with tabs[5]:
     definition("Parameter", "a learned weight inside the network — a 'memory slot' adjusted during training by "
                             "backpropagation and gradient descent. 13B parameters = 13 billion tuned numbers.")
+    st.markdown("**How parameters are formed:** a Transformer has layers, and the layers contain neurons. Each neuron has **weights and biases**: those are the parameters. "
+                "During training, backpropagation and gradient descent adjust them based on the model's error on each example.")
+    st.markdown("**What the parameter count tells you:** *capacity* (how much it can learn) · *complexity* (how deep and wide it is) · "
+                "*resource requirement* (how much hardware it needs).")
     sizes = pd.DataFrame({"model": ["Phi-2", "Gemma", "LLaMA 3 (small)", "Falcon", "Qwen", "GPT-3"],
                           "billions of parameters": [1.3, 2, 8, 40, 72, 175]}).set_index("model")
     st.bar_chart(sizes, height=260, horizontal=True)
@@ -167,6 +286,13 @@ with tabs[5]:
                     "3. **Reduced multimodality** — often need external image encoders\n"
                     "4. **More hallucination** — may invent a citation\n"
                     "5. **Poor generalisation** — an HR-tuned model struggles with legal questions")
+        with st.expander("Each challenge, with an example"):
+            st.markdown(
+                "- **Limited knowledge scope:** ask Phi-2 or Gemma about the latest quantum-computing breakthrough and the answer may be vague or outdated. *Matters for medical, legal and policy use.*\n"
+                "- **Complex reasoning:** the bananas puzzle can be answered wrongly or without the steps. *Matters for finance and planning tools.*\n"
+                "- **Reduced multimodality:** GPT-4o or Gemini take an image directly; small models like LLaVA often need an external image encoder, which is slower and harder to integrate.\n"
+                "- **Security and hallucination:** asked for a research-paper citation, a small model may invent a title, authors and journal. *Matters for academia, journalism, healthcare.*\n"
+                "- **Poor generalisation:** a model fine-tuned on HR questions does badly on legal compliance or sales strategy.")
         st.code("John bought three apples and two bananas, then gave one banana\n"
                 "to his friend. How many bananas does he have left?   → 1", language="text")
 
@@ -214,25 +340,40 @@ with tabs[7]:
     st.markdown("**Build AI ethically:** Transparency · Inclusivity · Accountability · Consent · Continuous feedback "
                 "(e.g. Google's 2018 AI Principles).")
 
-takeaway([
-    "LLMs are built in 3 stages: pre-training (language patterns) → SFT (follow instructions) → RLHF (human preferences).",
-    "Text is tokenized into numeric IDs; the model learns patterns, not facts.",
-    "Closed models = top performance via API; open models = control, privacy, offline use, customization.",
-    "Parameters are learned weights; SLMs trade some capability for speed, cost and privacy.",
-    "Responsible AI addresses bias, privacy, IP, hallucinations and deepfakes.",
-])
 
-quiz("m2", [
-    {"q": "What does the base model (after pre-training) NOT do well?",
-     "options": ["Complete sentences", "Generate fluent text", "Follow instructions politely", "Use grammar"],
-     "answer": 2, "why": "Instruction-following comes from supervised fine-tuning; alignment from RLHF."},
-    {"q": "In RLHF, what does the reward model do?",
-     "options": ["Generates answers", "Scores answers by predicted human preference", "Tokenizes text", "Collects web data"],
-     "answer": 1, "why": "It is a judge trained on human rankings — it doesn't generate text."},
-    {"q": "A hospital needs a chatbot whose data never leaves its servers. Best fit?",
-     "options": ["A closed model via public API", "An open-source / small model hosted locally", "Any model — privacy is the same", "A GAN"],
-     "answer": 1, "why": "Open/small models can run on-premise, keeping data private."},
-    {"q": "“7B” in a model name means…",
-     "options": ["7 billion training documents", "7 billion learned parameters", "7 billion users", "Version 7 beta"],
-     "answer": 1, "why": "It's the number of learned weights."},
-])
+# ---------------------------------------------------------------------------
+with tabs[8]:
+    takeaway([
+        "LLMs are built in 3 stages: pre-training (language patterns) → SFT (follow instructions) → RLHF (human preferences).",
+        "Text is tokenized into numeric IDs; the model learns patterns, not facts.",
+        "Closed models = top performance via API; open models = control, privacy, offline use, customization.",
+        "Parameters are learned weights; SLMs trade some capability for speed, cost and privacy.",
+        "Responsible AI addresses bias, privacy, IP, hallucinations and deepfakes.",
+    ])
+    with st.expander("Conclusion from the course notes"):
+        st.markdown(
+            "1. **Training pipeline:** generative pre-training on massive text with the Transformer → supervised fine-tuning with labeled prompt-response pairs → RLHF to align behaviour with human preferences.\n"
+            "2. **Open vs closed:** open models (LLaMA, Gemma, Qwen) give transparency, customisation and offline use; closed models (ChatGPT, Gemini, Claude) give high performance but less flexibility.\n"
+            "3. **Small Language Models:** Phi and Gemma (2B / 7B) are lightweight alternatives for mobile, offline and data-sensitive uses.\n"
+            "4. **Ethics:** bias, privacy breaches, misinformation and misuse (deepfakes). Practise transparency, fairness and continuous human oversight.\n"
+            "5. **Hands-on:** try open models (Hugging Face) and closed tools (ChatGPT, Gemini, Claude) with good and bad prompts and compare.")
+    st.markdown("**Resources:** open models: [Hugging Face](https://huggingface.co/) · [HuggingChat](https://huggingface.co/chat/). "
+                "Closed models: [ChatGPT](https://chatgpt.com/) · [Gemini](https://gemini.google.com/app) · [AI Studio](https://aistudio.google.com/prompts/new_chat) · [Claude](https://claude.ai/new). "
+                "Trends: [AI news](https://www.artificialintelligence-news.com) · [Artificial Analysis](https://artificialanalysis.ai/)")
+
+
+with tabs[9]:
+    quiz("m2", [
+        {"q": "What does the base model (after pre-training) NOT do well?",
+         "options": ["Complete sentences", "Generate fluent text", "Follow instructions politely", "Use grammar"],
+         "answer": 2, "why": "Instruction-following comes from supervised fine-tuning; alignment from RLHF."},
+        {"q": "In RLHF, what does the reward model do?",
+         "options": ["Generates answers", "Scores answers by predicted human preference", "Tokenizes text", "Collects web data"],
+         "answer": 1, "why": "It is a judge trained on human rankings — it doesn't generate text."},
+        {"q": "A hospital needs a chatbot whose data never leaves its servers. Best fit?",
+         "options": ["A closed model via public API", "An open-source / small model hosted locally", "Any model — privacy is the same", "A GAN"],
+         "answer": 1, "why": "Open/small models can run on-premise, keeping data private."},
+        {"q": "“7B” in a model name means…",
+         "options": ["7 billion training documents", "7 billion learned parameters", "7 billion users", "Version 7 beta"],
+         "answer": 1, "why": "It's the number of learned weights."},
+    ])

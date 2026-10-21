@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 
 from core import sim
-from core.llm import generate, run_live
 from core.ui import analogy, cards, definition, page_header, quiz, takeaway
 
 page_header(
@@ -597,21 +596,23 @@ with tabs[5]:
             "- The two filters can be combined — a token must pass both."
         )
 
-    st.markdown("#### 🟢 Live: the same prompt at different temperatures")
-    prompt = st.text_input("Prompt", "Write a one-line tagline for a neighbourhood chai stall.", key="m1_live_prompt")
-
-    def _temps():
-        return [(temp, generate(prompt, temperature=temp, max_tokens=None)[0]) for temp in (0.0, 0.7, 1.5)]
-
-    res = run_live("Run at T = 0.0, 0.7 and 1.5", _temps, key="m1_live")
-    if res:
-        cols = st.columns(3)
-        for col, (temp, txt) in zip(cols, res):
-            with col:
-                with st.container(border=True):
-                    st.markdown(f"**Temperature {temp}**")
-                    st.write(txt)
-        st.caption("Run it twice: T = 0 should barely change, T = 1.5 should surprise you.")
+    st.markdown("#### 📋 Example: the same prompt at different temperatures")
+    st.caption("Sample outputs written for teaching (not a live call). Prompt: *\"Write a one-line tagline for a neighbourhood chai stall.\"*")
+    samples = [
+        ("0.0", "Safe and repeatable", ["Freshly brewed chai, served with a smile.", "Freshly brewed chai, served with a smile.", "Freshly brewed chai, served with a smile."]),
+        ("0.7", "Balanced", ["Where every cup tastes like home.", "Your corner, your chai, your moment of calm.", "Warm cups, warmer conversations."]),
+        ("1.5", "Adventurous", ["Steam, spice and stories: the street's favourite sunrise.", "Sip the monsoon, one cardamom cloud at a time.", "Chai so good, your Monday will file for a transfer."]),
+    ]
+    cols = st.columns(3)
+    for col, (temp, mood, outs) in zip(cols, samples):
+        with col:
+            with st.container(border=True):
+                st.markdown(f"**Temperature {temp}** · {mood}")
+                for k, o in enumerate(outs, 1):
+                    st.markdown(f"Run {k}: {o}")
+    st.caption("Read across the runs: at T = 0 all three runs are identical; at 0.7 they vary but stay on-brand; at 1.5 they surprise you and may drift.")
+    st.info("Note: newer Gemini models (such as Gemini 3.x) are tuned to run at their default temperature, and Google recommends leaving it alone. "
+            "That is why this page shows saved examples instead of a live temperature test. The idea still matters for many other models and APIs.", icon="ℹ️")
     st.code(
         """from google import genai
 from google.genai import types
@@ -620,6 +621,7 @@ client = genai.Client(api_key=API_KEY)
 resp = client.models.generate_content(
     model="gemini-3.5-flash-lite",
     contents="Write a one-line tagline for a chai stall.",
+    # Teaching values. On Gemini 3.x leave temperature, top_p, top_k at their defaults.
     config=types.GenerateContentConfig(temperature=1.2, top_p=0.9, top_k=40),
 )
 print(resp.text)""",

@@ -21,7 +21,7 @@ page_header(
 )
 
 tabs = st.tabs(["🌍 Journey of a request", "📦 Packets", "Client · Server · API", "Serverful vs serverless",
-                "🧾 JSON", "🧪 API playground", "Status codes"])
+                "🧾 JSON", "🧪 API playground", "Status codes", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     st.subheader("You type codingninjas.com and hit Enter…")
@@ -186,21 +186,26 @@ with tabs[6]:
               503: "Retry with backoff (2s, 4s, 8s…) — exactly what `call_with_retry` in your chatbot does."}
     st.info(action[code])
 
-takeaway([
-    "DNS finds the IP; TCP handshakes; data travels as packets; the receiver reassembles; FIN-ACK closes.",
-    "Client asks, server answers, the API is the agreed way to ask (the waiter).",
-    "Serverful = always-on control; serverless = on-demand, pay-per-use (how Gemini is served).",
-    "APIs speak JSON: key-value pairs.",
-    "GET reads, POST sends (LLM prompts), PUT/PATCH update, DELETE removes; 2xx ok, 4xx your fault, 5xx theirs.",
-])
 
-quiz("m51", [
-    {"q": "What does DNS do?", "options": ["Encrypts data", "Translates domain names to IP addresses", "Splits data into packets", "Closes connections"],
-     "answer": 1, "why": "DNS is the phonebook of the internet."},
-    {"q": "Which HTTP method do LLM APIs typically use to send a prompt?", "options": ["GET", "POST", "DELETE", "PATCH"],
-     "answer": 1, "why": "You send data (the prompt) to be processed."},
-    {"q": "Your app gets 401 from Gemini. Most likely cause?", "options": ["Server overloaded", "Invalid/missing API key", "Model too slow", "Bad JSON from the model"],
-     "answer": 1, "why": "401 Unauthorized = credentials problem."},
-    {"q": "Calling Gemini through its SDK is an example of…", "options": ["Serverful API", "Serverless API", "Peer-to-peer", "Local inference"],
-     "answer": 1, "why": "Google spins up inference on demand; you manage no servers."},
-])
+# ---------------------------------------------------------------------------
+with tabs[7]:
+    takeaway([
+        "DNS finds the IP; TCP handshakes; data travels as packets; the receiver reassembles; FIN-ACK closes.",
+        "Client asks, server answers, the API is the agreed way to ask (the waiter).",
+        "Serverful = always-on control; serverless = on-demand, pay-per-use (how Gemini is served).",
+        "APIs speak JSON: key-value pairs.",
+        "GET reads, POST sends (LLM prompts), PUT/PATCH update, DELETE removes; 2xx ok, 4xx your fault, 5xx theirs.",
+    ])
+
+
+with tabs[8]:
+    quiz("m51", [
+        {"q": "What does DNS do?", "options": ["Encrypts data", "Translates domain names to IP addresses", "Splits data into packets", "Closes connections"],
+         "answer": 1, "why": "DNS is the phonebook of the internet."},
+        {"q": "Which HTTP method do LLM APIs typically use to send a prompt?", "options": ["GET", "POST", "DELETE", "PATCH"],
+         "answer": 1, "why": "You send data (the prompt) to be processed."},
+        {"q": "Your app gets 401 from Gemini. Most likely cause?", "options": ["Server overloaded", "Invalid/missing API key", "Model too slow", "Bad JSON from the model"],
+         "answer": 1, "why": "401 Unauthorized = credentials problem."},
+        {"q": "Calling Gemini through its SDK is an example of…", "options": ["Serverful API", "Serverless API", "Peer-to-peer", "Local inference"],
+         "answer": 1, "why": "Google spins up inference on demand; you manage no servers."},
+    ])

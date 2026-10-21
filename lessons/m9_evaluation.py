@@ -27,7 +27,7 @@ page_header(
 
 tabs = st.tabs(["🌀 Hallucinations", "Model limitations", "🧪 Quirk-surface tests", "📐 Traditional metrics",
                 "🏗️ Metric layering", "🧑‍⚖️ Rubrics & human judging", "🤖 LLM-as-judge (your Study Buddy)",
-                "🔁 Refinement cycle", "✏️ Prompt editing strategies"])
+                "🔁 Refinement cycle", "✏️ Prompt editing strategies", "🧾 Key takeaways", "✅ Knowledge check"])
 
 # ---------------------------------------------------------------------------
 with tabs[0]:
@@ -418,23 +418,28 @@ with tabs[8]:
             st.markdown(res)
         st.caption("Shipping fees aren't in the document — a grounded answer should say so instead of guessing.")
 
-takeaway([
-    "Evaluating output is as important as engineering input.",
-    "Hallucinations come from data gaps, next-token objectives, overconfidence, no grounding and vague prompts.",
-    "Stress-test quirks: contrastive phrasing, numeric stress, multi-turn memory.",
-    "Layer metrics: automated checks → human judgment → weighted decisions; use fair rubrics with anchors.",
-    "LLM-as-judge scales evaluation; iterate prompts with A/B tests, schemas, grounding and failsafes.",
-])
 
-quiz("m9", [
-    {"q": "A model invents a journal article with authors and DOI. This is…", "options": ["Mode collapse", "Citation hallucination",
-     "Verbosity drift", "Order effect"], "answer": 1, "why": "Fake references that look real."},
-    {"q": "A fraud model flags 10 transactions, 4 are truly fraud. Which metric is 40%?", "options": ["Recall", "Precision", "Accuracy", "F1"],
-     "answer": 1, "why": "Precision = TP / everything flagged."},
-    {"q": "Why should an LLM judge evaluate each answer in a fresh call?", "options": ["It's cheaper", "So earlier verdicts in chat history can't bias the score",
-     "JSON parsing needs it", "Temperature must be 1"], "answer": 1, "why": "Independent judgments are more consistent."},
-    {"q": "“Answer only from the provided document” is which strategy?", "options": ["Explicit task framing", "Output schema",
-     "Source grounding", "Mode collapse"], "answer": 2, "why": "It constrains the knowledge base to trusted data."},
-    {"q": "First step of the iterative refinement cycle?", "options": ["Edit the prompt", "Define target behaviour", "A/B test", "Fine-tune the model"],
-     "answer": 1, "why": "You can't improve what you haven't defined."},
-])
+# ---------------------------------------------------------------------------
+with tabs[9]:
+    takeaway([
+        "Evaluating output is as important as engineering input.",
+        "Hallucinations come from data gaps, next-token objectives, overconfidence, no grounding and vague prompts.",
+        "Stress-test quirks: contrastive phrasing, numeric stress, multi-turn memory.",
+        "Layer metrics: automated checks → human judgment → weighted decisions; use fair rubrics with anchors.",
+        "LLM-as-judge scales evaluation; iterate prompts with A/B tests, schemas, grounding and failsafes.",
+    ])
+
+
+with tabs[10]:
+    quiz("m9", [
+        {"q": "A model invents a journal article with authors and DOI. This is…", "options": ["Mode collapse", "Citation hallucination",
+         "Verbosity drift", "Order effect"], "answer": 1, "why": "Fake references that look real."},
+        {"q": "A fraud model flags 10 transactions, 4 are truly fraud. Which metric is 40%?", "options": ["Recall", "Precision", "Accuracy", "F1"],
+         "answer": 1, "why": "Precision = TP / everything flagged."},
+        {"q": "Why should an LLM judge evaluate each answer in a fresh call?", "options": ["It's cheaper", "So earlier verdicts in chat history can't bias the score",
+         "JSON parsing needs it", "Temperature must be 1"], "answer": 1, "why": "Independent judgments are more consistent."},
+        {"q": "“Answer only from the provided document” is which strategy?", "options": ["Explicit task framing", "Output schema",
+         "Source grounding", "Mode collapse"], "answer": 2, "why": "It constrains the knowledge base to trusted data."},
+        {"q": "First step of the iterative refinement cycle?", "options": ["Edit the prompt", "Define target behaviour", "A/B test", "Fine-tune the model"],
+         "answer": 1, "why": "You can't improve what you haven't defined."},
+    ])

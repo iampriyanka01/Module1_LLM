@@ -24,7 +24,7 @@ page_header(
 )
 
 tabs = st.tabs(["Black-box LLMs", "🔑 API keys", "🟢 Hello Gemini", "🪙 Tokens & cost", "🔀 Smart routing",
-                "♻️ Caching", "🔁 Retries & rate limits", "🛡️ Input security", "📊 Logging & monitoring"])
+                "♻️ Caching", "🔁 Retries & rate limits", "🛡️ Input security", "📊 Logging & monitoring", "🧾 Key takeaways", "✅ Knowledge check"])
 
 with tabs[0]:
     definition("Black-box LLM", "a model whose weights, architecture and training data are hidden. You see only "
@@ -279,21 +279,26 @@ with tabs[8]:
     if not get_api_key():
         st.caption("Logs fill up once you add an API key and run demos.")
 
-takeaway([
-    "Black-box LLMs are used through APIs — no infrastructure, always up to date, easy to integrate.",
-    "API keys authenticate, bill and limit you: keep them in .env, out of git, out of print() and logs.",
-    "Cost = (input + output tokens) × price × calls: shorten prompts, cap outputs, cache, route to cheaper models.",
-    "Reliability: retry transient errors with exponential backoff; respect rate limits.",
-    "Security & visibility: validate input, protect keys, log and monitor every call.",
-])
 
-quiz("m52", [
-    {"q": "Where should an API key live during local development?", "options": ["Hardcoded in the script", "In a .env file listed in .gitignore",
-     "In the README", "Printed at startup so you can check it"], "answer": 1, "why": "Secrets stay outside code and outside git."},
-    {"q": "You're billed for…", "options": ["Only the prompt", "Only the answer", "Input and output tokens", "Number of sentences"],
-     "answer": 2, "why": "Both directions count."},
-    {"q": "A 429 error means you should…", "options": ["Fix the API key", "Retry later with backoff / reduce request rate",
-     "Change the model name", "Delete the cache"], "answer": 1, "why": "429 = Too Many Requests (rate limit)."},
-    {"q": "Routing positive queries to a FAQ instead of a large model mainly reduces…", "options": ["Accuracy", "Cost", "Security", "Latency to zero"],
-     "answer": 1, "why": "Cheaper resources for simpler tasks."},
-])
+# ---------------------------------------------------------------------------
+with tabs[9]:
+    takeaway([
+        "Black-box LLMs are used through APIs — no infrastructure, always up to date, easy to integrate.",
+        "API keys authenticate, bill and limit you: keep them in .env, out of git, out of print() and logs.",
+        "Cost = (input + output tokens) × price × calls: shorten prompts, cap outputs, cache, route to cheaper models.",
+        "Reliability: retry transient errors with exponential backoff; respect rate limits.",
+        "Security & visibility: validate input, protect keys, log and monitor every call.",
+    ])
+
+
+with tabs[10]:
+    quiz("m52", [
+        {"q": "Where should an API key live during local development?", "options": ["Hardcoded in the script", "In a .env file listed in .gitignore",
+         "In the README", "Printed at startup so you can check it"], "answer": 1, "why": "Secrets stay outside code and outside git."},
+        {"q": "You're billed for…", "options": ["Only the prompt", "Only the answer", "Input and output tokens", "Number of sentences"],
+         "answer": 2, "why": "Both directions count."},
+        {"q": "A 429 error means you should…", "options": ["Fix the API key", "Retry later with backoff / reduce request rate",
+         "Change the model name", "Delete the cache"], "answer": 1, "why": "429 = Too Many Requests (rate limit)."},
+        {"q": "Routing positive queries to a FAQ instead of a large model mainly reduces…", "options": ["Accuracy", "Cost", "Security", "Latency to zero"],
+         "answer": 1, "why": "Cheaper resources for simpler tasks."},
+    ])
