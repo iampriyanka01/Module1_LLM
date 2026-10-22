@@ -610,25 +610,57 @@ print(build_prompt("URGENT: Your account will be suspended! Call 555-FAKE immedi
     save("P1_ScamGuard_AI.ipynb", c)
 
 
-def nb_cinemate():
-    base = DL / "projects/cinemate"
-    c = header("Project · CineMate — a tool-calling movie chatbot (Groq + TMDB)",
-               "The LLM chats, decides when to call tools (`update_user_profile`, `search_movies`, `discover_movies`, `get_movie_details`), "
-               "and answers with real data from **TMDB**. The agent loop is the same one you built in Module 8.",
-               [GROQ, TMDB], "groq requests python-dotenv")
-    tools = (DL / "projects/cinemate_cli_doubt_session/tools.py").read_text("utf-8")
-    main = (DL / "projects/cinemate_cli_doubt_session/main.py").read_text("utf-8")
-    c += [md("## 1 · Files\n`tools.py` holds the Python functions; `main.py` holds the system prompt, the tool schemas and the loop. "
-             "(This is the original command-line version; the Streamlit version in the downloads folder adds a UI.)"),
-          code("%cd /content\n!mkdir -p cinemate\n%cd cinemate"),
-          writefile_cell("tools.py", tools),
-          writefile_cell("main.py", main),
-          md("## 2 · Keys\nThe TMDB value must be the **v4 “API Read Access Token”** (the long one), because it is sent as `Authorization: Bearer …`."),
-          code(SETUP_KEYS + '\nget_secret("GROQ_API_KEY", hint="(console.groq.com/keys) ")\nget_secret("TMDB_API_KEY", hint="(TMDB v4 Read Access Token) ")'),
-          md("## 3 · Run it\n`main.py` reads from `input()`; `%run` lets Colab show an input box: type a message, press Enter, type `exit` to stop. "
-             "Try: *“I love Interstellar and hate horror. Suggest 3 movies.”*"),
-          code("%run main.py")]
-    save("P2_CineMate_Groq_TMDB.ipynb", c)
+def nb_specsense():
+    c = header("Project · SpecSense AI — explainable product recommendations",
+               "Free-text shopping need → hard specs + soft preferences → explainable recommendation. First the **original** ReAct pipeline (answers from model memory), "
+               "then the **catalog-grounded** version (extract → match with pandas → explain) with gap detection.",
+               [GEMINI], "google-genai pandas pydantic python-dotenv")
+    files = ["utils.py", "config.py", "llm/__init__.py", "llm/client.py", "llm/prompts.py", "llm/prompts/react.md", "pipeline/__init__.py",
+             "pipeline/spec_sensor/__init__.py", "pipeline/spec_sensor/builder.py", "pipeline/spec_sensor/executor.py",
+             "pipeline/spec_sensor/parser.py", "pipeline/spec_sensor/sensor.py", "catalog_matcher.py", "data/products_sample.csv"]
+    c += [md("## 1 · Create the project files in this Colab session\nEach cell writes one file (`%%writefile`). `catalog_matcher.py` and the sample catalog are the grounded add-on."),
+          code("%cd /content\n!mkdir -p specsense_ai\n%cd specsense_ai")]
+    c += project_files("specsense_ai", files)
+    c += [md("## 2 · Key"),
+          code(SETUP_KEYS + '\nget_secret("GEMINI_API_KEY", hint="(from aistudio.google.com/apikey) ")\nos.environ["GEMINI_MODEL"] = "gemini-2.5-flash"   # or "gemini-3.5-flash-lite" if your key supports it'),
+          md("## 3 · Original pipeline (recommends from the model's memory)\nLook at `review_snippets` and the product name — then compare with the catalog in section 5."),
+          code('''\
+import sys, json; sys.path.insert(0, "/content/specsense_ai")
+from pipeline.spec_sensor.sensor import SpecSensor
+sensor = SpecSensor()
+q = "Find an affordable, lightweight laptop under rupees 30k suitable for coding and programming students."
+orig = sensor.detect(q)
+print(json.dumps(orig, indent=2, ensure_ascii=False))'''),
+          md("## 4 · The catalog (12 fictional laptops)"),
+          code("import pandas as pd\ncat = pd.read_csv('data/products_sample.csv')\ncat.drop(columns=['description'])"),
+          code('''\
+name = orig.get("recommended_product", "")
+print("Recommended by the original pipeline:", name)
+print("Exists in our catalog?", any(name.lower() == n.lower() for n in cat["name"]))'''),
+          md("## 5 · Grounded version: extract → match → explain\nThe matching step is plain pandas, so it is exact and testable; the LLM only extracts needs and explains the retrieved rows."),
+          code('''\
+from catalog_matcher import recommend
+res = recommend("Lightweight laptop under 30000 for coding students, good battery backup")
+print("Constraints :", res.pop("_constraints")); print("Exact match :", res.pop("_exact")); print("Candidates  :", res.pop("_candidates"), "\\n")
+print(json.dumps(res, indent=2, ensure_ascii=False))'''),
+          md("## 6 · Gap detection\nAsk for something the catalog cannot satisfy: under ₹30,000 **and** 16 GB RAM."),
+          code('''\
+import catalog_matcher as cm
+rows, exact = cm.match(cm.load_catalog(), {"max_price_inr": 30000, "min_ram_gb": 16})
+print("Exact match?", exact)
+rows[["name", "price_inr", "ram_gb", "violations"]]'''),
+          md("## 7 · Automatic checks (no LLM)\nIs the product in the catalog? Are the hard constraints met? Is the review quote verbatim?"),
+          code('''\
+def check(rec, limits):
+    row = cat[cat.name == rec.get("recommended_product")]
+    exists = len(row) == 1
+    ok = exists and row.price_inr.iloc[0] <= limits["price_inr"] and row.weight_kg.iloc[0] <= limits["weight_kg"]
+    quote = exists and all(sn.lower() in row.review.iloc[0].lower() for sn in rec.get("review_snippets", []))
+    return {"in catalog": exists, "hard constraints met": ok, "review verbatim": quote}
+lim = {"price_inr": 30000, "weight_kg": 1.5}
+print("original :", check(orig, lim)); print("grounded :", check(res, lim))'''),
+          md("### Try next\n* Replace `data/products_sample.csv` with your own catalog (same columns).\n* Add a `min_screen_inches` constraint in `HARD` and the extract prompt.\n* Ask the LLM judge (see the app's SpecSense page) to score explainability.")]
+    save("P3_SpecSense_AI.ipynb", c)
 
 
 def nb_advisor():
@@ -668,9 +700,9 @@ if evaluation:
     for e in evaluation.movie_evaluations:
         print(" -", e.title, e.relevance_score, "/10:", e.justification)'''),
           md("## Why this design?\n* `with_structured_output(Model)` = no regex parsing; Pydantic **validates**.\n* Structured output and Google Search **can't share one call**, so research and formatting are two calls.\n* The judge is a *fresh* call so it can't grade its own homework.\n* `tracing.py` logs each step and its timing — handy for debugging.")]
-    save("P3_Cinema_Advisor_LangChain_OMDb.ipynb", c)
+    save("P2_Cinema_Advisor_LangChain_OMDb.ipynb", c)
 
 
 if __name__ == "__main__":
-    for fn in (nb_m6, nb_m7, nb_m7_chatbot, nb_m8, nb_m9, nb_scamguard, nb_cinemate, nb_advisor):
+    for fn in (nb_m6, nb_m7, nb_m7_chatbot, nb_m8, nb_m9, nb_scamguard, nb_advisor, nb_specsense):
         fn()

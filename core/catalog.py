@@ -40,10 +40,10 @@ NOTEBOOKS = [
      "Study Buddy target model + a separate evaluator model scoring answers against a rubric, then a batch comparison table.", "m9"),
     ("notebooks/P1_ScamGuard_AI.ipynb", "Project 1 · ScamGuard AI notebook",
      "Writes the whole project into the Colab VM (`%%writefile`), runs the detector on sample messages, shows the exact prompt and evaluates accuracy/recall/F1 on an embedded dataset sample.", "m10"),
-    ("notebooks/P2_CineMate_Groq_TMDB.ipynb", "Project 2 · CineMate notebook",
-     "The tool-calling movie chatbot (Groq LLM + TMDB data) as a runnable notebook; keys come from Colab Secrets.", "m11"),
-    ("notebooks/P3_Cinema_Advisor_LangChain_OMDb.ipynb", "Project 3 · Cinema Advisor notebook",
+    ("notebooks/P2_Cinema_Advisor_LangChain_OMDb.ipynb", "Project 2 · Cinema Advisor notebook",
      "LangChain + Gemini structured output, OMDb enrichment and an independent judge call — no Streamlit needed.", "m11"),
+    ("notebooks/P3_SpecSense_AI.ipynb", "Project 3 · SpecSense AI notebook",
+     "Writes the SpecSense project into Colab, runs the original ReAct pipeline, then the catalog-grounded matcher with gap detection and automatic checks.", "m12"),
 ]
 
 SCRIPTS = [
@@ -104,20 +104,23 @@ SCAM_FILES = {
     "pipeline/scam_detector/detector.py": "`ScamDetector`: orchestrates the 3 steps; `detect` and `detect_batch`.",
     "streamlit/app.py": "Browser UI for the detector.",
 }
-CINE_FILES = {
-    "read.md": "Notes on the Streamlit port of the CLI bot.",
-    ".env.example": "Template for `GROQ_API_KEY` and `TMDB_API_KEY`.",
-    ".gitignore": "Keeps `.env` out of Git.",
-    "requirements.txt": "groq, python-dotenv, requests (add streamlit for `app.py`).",
-    "tools.py": "TMDB helpers + `ProfileManager` (one profile per browser session) and the four TMDB tools.",
-    "main.py": "Command-line agent: system prompt, tool schemas, the tool-calling loop.",
-    "app.py": "Streamlit chat UI with profile sidebar, poster gallery and a live tool-status box.",
+SPEC_FILES = {
+    "README.md": "Overview, setup, known limitation of the original pipeline.",
+    ".env.example": "Template for `GEMINI_API_KEY` (copy to `.env`, never commit).", ".gitignore": "Keeps `.env`, caches and logs out of Git.",
+    "requirements.txt": "google-genai, pandas, pydantic, python-dotenv, streamlit, tqdm.",
+    "config.py": "Model name (overridable with `GEMINI_MODEL`), retries, batch sizes; key from the environment.",
+    "utils.py": "Logger, `extract_json_from_text`, `load_file`.", "main.py": "Command-line demo.",
+    "llm/client.py": "`LLMClient`: Gemini call with retry + exponential back-off.",
+    "llm/prompts.py": "Loads the template and appends the user's query.", "llm/prompts/react.md": "The ReAct prompt (Thought → Action → Observation → JSON).",
+    "llm/__init__.py": "Package marker.", "pipeline/__init__.py": "Package marker.", "pipeline/spec_sensor/__init__.py": "Package marker.",
+    "pipeline/spec_sensor/builder.py": "Step 1 — build the prompt for a strategy.", "pipeline/spec_sensor/executor.py": "Step 2 — call the LLM.",
+    "pipeline/spec_sensor/parser.py": "Step 3 — extract JSON into the six recommendation fields (safe defaults on failure).",
+    "pipeline/spec_sensor/sensor.py": "`SpecSensor`: orchestrates the three steps; `detect` and `detect_batch`.",
+    "catalog_matcher.py": "**Added:** extract → match (pandas) → explain; gap detection with nearest alternatives.",
+    "data/products_sample.csv": "**Added:** 12 fictional laptops with specs, stock, offers and one review each.",
+    "streamlit/app.py": "Browser UI: query box → recommended product, meets, partial, trade-offs, reviews, alternatives.",
 }
-CINE_CLI_FILES = {
-    "tools.py": "Original CLI tools (profile kept in a module-level dict — fine for one terminal user).",
-    "main.py": "Original CLI agent loop from the doubt session.",
-    "requirements.txt": "Dependencies.", ".env.example": "Key template.", ".gitignore": "Keeps `.env` out of Git.",
-}
+
 ADVISOR_FILES = {
     "README.md": "Setup and how it works.",
     ".env.example": "Template for `GEMINI_API_KEY` and `OMDB_API_KEY`.",
@@ -135,12 +138,10 @@ ADVISOR_FILES = {
 PROJECTS = [
     ("scamguard_ai", "ScamGuard AI", "m10", SCAM_FILES,
      "Scam-message detector: prompt strategies → Gemini → parser → validator → evaluation.", "notebooks/P1_ScamGuard_AI.ipynb"),
-    ("cinemate", "CineMate (Streamlit)", "m11", CINE_FILES,
-     "Tool-calling movie assistant (Groq + TMDB) with a Streamlit UI.", "notebooks/P2_CineMate_Groq_TMDB.ipynb"),
-    ("cinemate_cli_doubt_session", "CineMate (CLI, doubt session)", "m11", CINE_CLI_FILES,
-     "The original command-line version of CineMate.", "notebooks/P2_CineMate_Groq_TMDB.ipynb"),
     ("movie_advisor", "Gemini Cinema Advisor", "m11", ADVISOR_FILES,
-     "LangChain structured output + OMDb + LLM judge.", "notebooks/P3_Cinema_Advisor_LangChain_OMDb.ipynb"),
+     "LangChain structured output + OMDb + an independent LLM judge.", "notebooks/P2_Cinema_Advisor_LangChain_OMDb.ipynb"),
+    ("specsense_ai", "SpecSense AI", "m12", SPEC_FILES,
+     "Product recommender: free-text needs → hard specs + soft preferences → explainable match, with a catalog-grounded version.", "notebooks/P3_SpecSense_AI.ipynb"),
 ]
 
 NOTES = [

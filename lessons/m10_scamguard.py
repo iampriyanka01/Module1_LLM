@@ -89,8 +89,89 @@ def dataset() -> pd.DataFrame:
     return pd.read_csv(PROJ / "scam_detection_dataset.csv", encoding="utf-8-sig")
 
 
-tabs = st.tabs(["🎯 The pipeline", "📝 Prompt strategies", "🟢 Try it live", "🧱 Parser & validator", "📊 Evaluation",
+tabs = st.tabs(["📋 Problem statement", "📖 Project description", "🎯 The pipeline", "📝 Prompt strategies", "🟢 Try it live", "🧱 Parser & validator", "📊 Evaluation",
                 "🗂️ Code walkthrough", "🔐 Keys & security", "⬇️ Downloads", "🧾 Key takeaways", "✅ Knowledge check"])
+
+t_problem, t_desc, *tabs = tabs
+SHOTS = PROJ / "assets" / "screenshots"
+
+# ---------------------------------------------------------------------------
+with t_problem:
+    st.markdown("### ScamGuard AI: Problem Statement")
+    st.markdown("**Overview.** In today's digitally connected world, businesses face a growing threat from sophisticated scam communications that exploit "
+                "human psychology, impersonate trusted entities and bypass traditional security filters. These fraudulent messages erode user trust, damage brand "
+                "reputation and create costly support and compliance burdens.")
+    st.markdown("**ScamGuard AI** uses **Large Language Models (LLMs)** to analyse and classify text messages as **Scam, Not Scam or Uncertain**, while also "
+                "identifying the **underlying manipulative intent** and **categorising the type of scam**. Unlike one-time detection tools, it is a **modular, scalable "
+                "application** that combines several **prompt-engineering techniques** to support real-time analysis, explainable reasoning and easy feature expansion. "
+                "It is both a practical business solution and a hands-on project showing how to build trustworthy, interpretable AI systems.")
+    st.markdown("#### Problem context — common scam types")
+    mdtable(["Scam type", "What it looks like"], [
+        ("**OTP fraud**", "Messages asking you to share a one-time password"),
+        ("**Phishing**", "Fake links that lead to malicious websites"),
+        ("**Account suspension**", "False claims that a service is suspended and needs immediate action"),
+        ("**Reward manipulation**", "Fake prizes and lottery wins"),
+        ("**Fear tactics**", "Threats about account closure, SIM deactivation or legal action"),
+        ("**Fake authority**", "Impersonating government agencies (RBI, police …)"),
+        ("**Loan scams**", "Unsolicited “pre-approved” loan offers"),
+        ("**Urgency**", "Messages that create false time pressure"),
+    ])
+    st.caption("These scams succeed because they use **context-aware, emotionally charged language** that static rules and keyword filters struggle to detect, "
+               "and they **evolve faster than blacklists** can adapt — so the system must be adaptable and explainable.")
+    st.markdown("#### Why it matters for businesses")
+    st.markdown("Banks, telecoms, e-commerce, fintech and government services are prime targets. Scam messages that impersonate their brand cause "
+                "**brand-reputation damage**, **higher support load**, **regulatory risk** and **loss of customer trust** — and many organisations lack a scalable, "
+                "explainable, up-to-date way to flag them early.")
+    st.markdown("#### Educational context — what you practise")
+    cards([("Prompting techniques", "Zero-shot and few-shot classification · Chain-of-Thought for intent · ReAct for explainability and tool use (e.g. link safety checks) · dynamic few-shot examples for new scam types"),
+           ("System design", "Modular components (classification, intent extraction, scam-type labelling) that evolve independently · structured **output validation** · step-by-step reasoning and **risk scoring**"),
+           ("Product & quality", "A real-time interface with Streamlit · evaluating output for **accuracy, interpretability and reliability** · a system learners can extend")], cols=3)
+    st.markdown("#### Extend it (stretch goals)")
+    mdtable(["Extension", "How"], [
+        ("**Multi-language support**", "Add a translation module that detects the language and converts the message to English before the LLM"),
+        ("**Threat-database integration**", "Cross-check URLs or message patterns against known scam sources (e.g. RBI alerts, PhishTank) via an API or keyword lookup"),
+        ("**Feedback learning loop**", "Capture human corrections of wrong labels (false positives) and feed them back as extra few-shot examples"),
+    ])
+    st.markdown("#### Technical requirements")
+    st.markdown("Python 3.12+ · Google Generative AI (Gemini API) · Streamlit (web UI) · Pandas (data) · python-dotenv (environment) · Pydantic (validation)")
+    st.markdown("#### Dataset")
+    st.markdown("A labelled set of messages for training and testing. **Columns in the file you downloaded:** `message_text` (the message), `label` (`Scam` / `Not Scam`), "
+                "`intent_type` (e.g. Service Reminder, Loan Scam, Account Suspension) and `flag_reason`. "
+                "*(The original brief calls the text column `text` — the code accepts `text`, `message_text` or `message`.)*")
+    ds = dataset()
+    c1, c2 = st.columns([1, 1.3])
+    c1.metric("Rows", f"{len(ds):,}")
+    c1.dataframe(ds.label.value_counts().rename("rows"), width="stretch")
+    c2.dataframe(ds.intent_type.value_counts().head(8).rename("rows"), width="stretch")
+    st.caption("Balanced: 500 Scam / 500 Not Scam, so accuracy is meaningful here — but still check recall per class.")
+    catalog.dl_button("projects/scamguard_ai/scam_detection_dataset.csv", "⬇️ Download the dataset (CSV)", key="m10_ds_problem")
+
+# ---------------------------------------------------------------------------
+with t_desc:
+    st.markdown("### 🚨 ScamGuard AI: Protecting Trust with Generative Intelligence")
+    st.markdown("ScamGuard AI is a modular, scalable system that detects scam messages using **Google Gemini**, **Streamlit** and prompt engineering. "
+                "It classifies a message as **Scam**, **Not Scam** or **Uncertain** and returns **reasoning**, **intent** and **risk factors**.")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**📌 Features**")
+        st.markdown("- **Single message analysis** — instant classification with reasoning\n- **Dataset evaluation** — upload a CSV and analyse many messages\n"
+                    "- **Explainable output** — label, reasoning, intent, risk factors (JSON)\n- **Modular architecture** — builder · executor · parser · detector\n"
+                    "- **Extensible** — multi-language, threat DB, feedback loops")
+    with c2:
+        st.markdown("**🛠 Tech stack**")
+        st.markdown("- Python 3.10+\n- **Streamlit** — web interface\n- **Gemini API** — LLM reasoning\n- **Pandas** — dataset handling\n- **Custom parser** — raw LLM text → structured JSON")
+    st.markdown("**🏗️ Project structure**")
+    if (SHOTS / "FolderStructure.png").exists():
+        st.image(str(SHOTS / "FolderStructure.png"), width=420)
+    st.markdown("**🎥 Demo screenshots (the Streamlit app)**")
+    d1, d2 = st.columns(2)
+    for col, (fn, cap) in zip((d1, d2), [("Single_scam_message.png", "A scam message → label, intent, reasoning, risk factors"),
+                                         ("Single_nonscam_message.png", "A legitimate message → Not Scam")]):
+        if (SHOTS / fn).exists():
+            col.image(str(SHOTS / fn), caption=cap)
+    if (SHOTS / "Multi_message.png").exists():
+        st.image(str(SHOTS / "Multi_message.png"), caption="Dataset evaluation tab: many messages at once", width=700)
+    st.markdown("**▶ Run it**: see the *Code walkthrough* tab, or download everything in the *Downloads* tab (zip + Colab notebook).")
 
 # ---------------------------------------------------------------------------
 with tabs[0]:

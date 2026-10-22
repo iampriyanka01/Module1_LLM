@@ -11,7 +11,7 @@ st.markdown(
 )
 
 c1, c2, c3 = st.columns(3)
-QUIZ_MODS = [k for k in MODULES if k != "m12"]
+QUIZ_MODS = [k for k in MODULES if k != "m13"]
 c1.metric("Modules", len(QUIZ_MODS))
 done = [k for k in QUIZ_MODS if module_score(k) is not None]
 c2.metric("Quizzes attempted", f"{len(done)} / {len(QUIZ_MODS)}")
@@ -31,9 +31,10 @@ path = [
     ("m7", "💬", "Chat roles, system prompts, 'memory' illusion, context window strategies."),
     ("m8", "🛠️", "Tools, tool cards, the function-calling loop, multi & async calls, fallbacks."),
     ("m9", "📏", "Hallucinations, model quirks, metrics, rubrics, LLM-as-judge, refinement loop."),
-    ("m10", "🛡️", "Project: ScamGuard AI — prompt strategies, parser/validator, evaluation, Colab notebook."),
-    ("m11", "🎬", "Projects: CineMate (tool-calling agent) and Cinema Advisor (structured output + judge)."),
-    ("m12", "⬇️", "Download every script, notebook, project and note; full guide to API keys & secrets."),
+    ("m10", "🛡️", "Project: ScamGuard AI — problem statement, prompt strategies, parser/validator, evaluation, Colab notebook."),
+    ("m11", "🎬", "Project: Cinema Advisor — structured output, OMDb enrichment, independent LLM judge."),
+    ("m12", "🔍", "Project: SpecSense AI — explainable product recommendations grounded in a catalog."),
+    ("m13", "⬇️", "Download every script, notebook, project and note; full guide to API keys & secrets."),
 ]
 cols = st.columns(2)
 for i, (key, icon, desc) in enumerate(path):

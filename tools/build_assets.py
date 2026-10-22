@@ -87,11 +87,12 @@ def fix_scamguard(name: str, text: str) -> str:
 
 def build(src: Path, notebooks_only: bool = False):
     if not notebooks_only:
-        if OUT.exists():
-            shutil.rmtree(OUT)
+        # rebuild only what this script owns (notebooks/ and projects/specsense_ai are built by other tools)
+        for sub in ("scripts", "notes", "projects/scamguard_ai", "projects/movie_advisor"):
+            shutil.rmtree(OUT / sub, ignore_errors=True)
         (OUT / "scripts").mkdir(parents=True)
-        (OUT / "notes").mkdir()
-        (OUT / "projects").mkdir()
+        (OUT / "notes").mkdir(exist_ok=True)
+        (OUT / "projects").mkdir(exist_ok=True)
 
         # ---- session scripts ------------------------------------------------
         s6 = next(src.glob("6.Advanced*/Module 1 Session 6/Session 6 _ Advanced Handling of LLM Responses"))
@@ -144,14 +145,15 @@ def build(src: Path, notebooks_only: bool = False):
 
         # ---- projects --------------------------------------------------------
         copy_tree(src / "10 In-Class Project ScamGuard AI/Project-1-Scam_Detection-main", OUT / "projects/scamguard_ai", fix_scamguard)
-        copy_tree(src / "11. CineMate", OUT / "projects/cinemate")
-        copy_tree(src / "11. Doubt session/CineMate", OUT / "projects/cinemate_cli_doubt_session")
+        for item in (ROOT / "tools" / "extra" / "scamguard").rglob("*"):   # README + screenshots from the student repo
+            if item.is_file():
+                tgt = OUT / "projects/scamguard_ai" / item.relative_to(ROOT / "tools" / "extra" / "scamguard")
+                tgt.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, tgt)
         copy_tree(src / "11. movie_advisor", OUT / "projects/movie_advisor")
         (OUT / "projects/movie_advisor/test omdb key.py").rename(OUT / "projects/movie_advisor/test_omdb_key.py")
         envs = {
             "scamguard_ai": "GEMINI_API_KEY=your_gemini_key_here\n# GEMINI_MODEL=gemini-2.5-flash\n",
-            "cinemate": "GROQ_API_KEY=your_groq_key_here\nTMDB_API_KEY=your_tmdb_v4_read_access_token_here\n",
-            "cinemate_cli_doubt_session": "GROQ_API_KEY=your_groq_key_here\nTMDB_API_KEY=your_tmdb_v4_read_access_token_here\n",
             "movie_advisor": "GEMINI_API_KEY=your_gemini_key_here\nOMDB_API_KEY=your_omdb_key_here\n",
         }
         for proj, body in envs.items():

@@ -72,10 +72,11 @@ pages = {
     ],
     "Projects": [
         st.Page(P + "m10_scamguard.py", title="10 · ScamGuard AI", icon="🛡️"),
-        st.Page(P + "m11_cinemate.py", title="11 · CineMate & Cinema Advisor", icon="🎬"),
+        st.Page(P + "m11_cinema_advisor.py", title="11 · Cinema Advisor", icon="🎬"),
+        st.Page(P + "m12_specsense.py", title="12 · SpecSense AI", icon="🔍"),
     ],
     "Resources": [
-        st.Page(P + "m12_downloads.py", title="Downloads & API keys", icon="⬇️"),
+        st.Page(P + "m13_downloads.py", title="Downloads & API keys", icon="⬇️"),
     ],
 }
 

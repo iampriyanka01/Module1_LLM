@@ -1,0 +1,13 @@
+id,name,category,price_inr,weight_kg,ram_gb,storage_gb,cpu,battery_hours,in_stock,offer,description,review
+L01,Nimbus Air 14 Lite,laptop,27990,1.30,8,256,Ryzen 3 class,9,yes,₹1000 off with bank card,Thin 14-inch student laptop with a bright IPS screen,"Light enough to carry all day and VS Code runs fine, but the screen could be sharper."
+L02,Nimbus Air 14 Plus,laptop,32990,1.30,16,512,Ryzen 5 class,10,yes,none,Same body as the Lite with double the memory and storage,"16 GB RAM makes multitasking smooth; battery lasts a full college day."
+L03,Vertex Student 15,laptop,24990,1.75,8,512,Core i3 class,6,yes,Free sleeve,Budget 15-inch laptop with a roomy keyboard,"Great value and a comfortable keyboard, but it is bulky and the battery is average."
+L04,Vertex Pro 14,laptop,58990,1.45,16,512,Core i5 class,12,yes,none,Business ultraportable with a metal body,"Fast, quiet, and the battery easily lasts a work day."
+L05,Orbit Creator 16,laptop,89990,2.10,32,1024,Core i7 class + RTX GPU,6,no,none,Creator laptop with a colour-accurate OLED screen,"Superb screen and speed for video editing; heavy and the fans get loud."
+L06,Orbit Go 13,laptop,29490,1.10,8,256,Core i3 class,11,yes,Extra 6 months warranty,Ultra-light 13-inch laptop built for travel,"Barely notice it in my bag and the battery goes on forever; only 256 GB storage."
+L07,Lumo Code 14,laptop,41990,1.35,16,512,Ryzen 5 class,13,yes,none,Developer-friendly 14-inch with upgradable RAM and a great keyboard,"Compiles quickly, keyboard is excellent and the battery lasts two days of classes."
+L08,Lumo Basic 14,laptop,21990,1.60,4,128,Pentium class,5,yes,none,Entry-level laptop for browsing and documents,"Fine for web and documents; slow if you open many tabs."
+L09,Nimbus Gamer 15,laptop,74990,2.30,16,512,Ryzen 7 class + RTX GPU,5,yes,Free headset,Gaming laptop with a 144 Hz display,"Smooth games, but it is heavy and the battery is short."
+L10,Vertex Slate 12,laptop,35990,0.95,8,256,Core m class,14,yes,none,Ultra-compact 12-inch with all-day battery,"Incredibly light and long battery; underpowered for heavy coding."
+L11,Orbit Edu 14,laptop,26990,1.40,8,256,Core i3 class,8,yes,Free mouse,Rugged laptop designed for schools,"Survived being dropped; battery is decent and it is easy to repair."
+L12,Lumo Studio 15,laptop,64990,1.80,16,1024,Ryzen 7 class,9,no,none,Large-screen laptop for design and analytics,"Gorgeous large display; sold out most weeks."
