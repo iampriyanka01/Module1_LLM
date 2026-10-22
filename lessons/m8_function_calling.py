@@ -346,7 +346,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 WEATHER_KEY = os.getenv("WEATHER_API_KEY")
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3.5-flash-lite"
 
 def get_current_weather(city: str) -> dict:
     try:

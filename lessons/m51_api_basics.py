@@ -48,10 +48,22 @@ with tabs[0]:
          "1. Client **FIN** “I'm done sending.” 2. Server **ACK** “Got it.” 3. Server **FIN** “I'm done too.” "
          "4. Client **ACK** “All done!”\n\nClean closure frees resources (unclosed connections linger in `TIME_WAIT`)."),
     ])
-    diagram("""
-digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica" fillcolor="#eef2ff"];
- a [label="Type URL"]; b [label="DNS → IP"]; c [label="TCP handshake\\nSYN · SYN-ACK · ACK"]; d [label="Packets"]; e [label="Reassemble & render"]; f [label="FIN · ACK · FIN · ACK"];
- a->b->c->d->e->f; }""")
+    cur = st.session_state.get("step_net_journey", 0)
+    NJ = [("1 · DNS lookup\\nname → IP", "b"), ("2 · TCP handshake\\nSYN · SYN-ACK · ACK", "c"), ("3 · Packets\\nsplit & send", "d"),
+          ("4 · Reassemble\\n& render page", "e"), ("5 · Close\\nFIN · ACK · FIN · ACK", "f")]
+    dot = ["digraph { rankdir=LR; nodesep=0.35; ranksep=0.45;",
+           'a [label="You type\\ncodingninjas.com" fillcolor="#f1f5f9"];']
+    for k, (lab, nid) in enumerate(NJ):
+        if k < cur:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#bbf7d0"];')          # done
+        elif k == cur:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#fb923c" color="#c2410c" penwidth=3 fontsize=15];')  # you are here
+        else:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#f1f5f9"];')           # upcoming
+    dot.append("a->b->c->d->e->f; }")
+    st.markdown(f"**Where you are in the journey — step {cur + 1} of 5 is highlighted**")
+    diagram("\n".join(dot), max_w=10, max_h=3.2)
+    st.caption("🟧 current step · 🟩 already done · ⬜ still to come. Use Back / Next above to move along the diagram.")
 
 with tabs[1]:
     st.subheader("Why break data into packets?")

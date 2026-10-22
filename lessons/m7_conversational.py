@@ -387,7 +387,7 @@ client = OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
 )
 response = client.chat.completions.create(
-    model="gemini-2.5-flash",
+    model="gemini-3.5-flash-lite",
     messages=[
         {"role": "system", "content": "You are a friendly and concise assistant."},
         {"role": "user", "content": "What's the capital of Japan?"},
