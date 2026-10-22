@@ -6,6 +6,7 @@ import streamlit as st
 from core import sim
 from core.ui import analogy, cards, definition, diagram, page_header, quiz, takeaway
 from core.diagrams import show_dg
+from core.codelab import code_lab
 
 page_header(
     "m1",
@@ -617,20 +618,16 @@ with tabs[5]:
     st.caption("Read across the runs: at T = 0 all three runs are identical; at 0.7 they vary but stay on-brand; at 1.5 they surprise you and may drift.")
     st.info("Note: newer Gemini models (such as Gemini 3.x) are tuned to run at their default temperature, and Google recommends leaving it alone. "
             "That is why this page shows saved examples instead of a live temperature test. The idea still matters for many other models and APIs.", icon="ℹ️")
-    st.code(
-        """from google import genai
-from google.genai import types
+    code_lab("m1_sampling", """from google.genai import types
 
-client = genai.Client(api_key=API_KEY)
 resp = client.models.generate_content(
-    model="gemini-3.5-flash-lite",
+    model=MODEL,
     contents="Write a one-line tagline for a chai stall.",
-    # Teaching values. On Gemini 3.x leave temperature, top_p, top_k at their defaults.
+    # Teaching values. On Gemini 3.x leave temperature, top_p, top_k at their defaults —
+    # if this raises an error on your model, delete the config line and run again.
     config=types.GenerateContentConfig(temperature=1.2, top_p=0.9, top_k=40),
 )
-print(resp.text)""",
-        language="python",
-    )
+print(resp.text)""", title="temperature / top_p / top_k")
 
 # ---------------------------------------------------------------------------
 with tabs[6]:

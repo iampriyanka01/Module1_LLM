@@ -9,7 +9,8 @@ import streamlit as st
 from core import sim
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call,
                       make_config, response_text, run_live)
-from core.ui import analogy, compare, definition, page_header, quiz, stepper, takeaway
+from core.ui import analogy, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.codelab import code_lab
 from core.diagrams import show_dg
 
 page_header(
@@ -42,12 +43,54 @@ with tabs[0]:
     ]
     for t, d in lim:
         st.markdown(f"**{t}** — {d}")
-    st.markdown("#### 🟢 Prove it: stateless calls vs a chat session")
-    st.code("""# stateless                                    # chat session
-client.models.generate_content(..., "I have 2 dogs in my house.")   chat = client.chats.create(model=MODEL)
-client.models.generate_content(..., "How many paws are in my house?")   chat.send_message("I have 2 dogs in my house.")
-                                                                         chat.send_message("How many paws are in my house?")""",
-            language="python")
+    st.markdown("#### 🟢 Prove it: the model forgets unless *you* send the history")
+    st.markdown("We tell the model one fact, then ask a question that needs it. Watch **what each call actually contains** (step 2).")
+    st.markdown("**A · Stateless — two separate calls**")
+    diagram("""digraph { rankdir=LR;
+ a1 [label="STEP 1 · call #1\\nsends: 'I have 2 dogs\\nin my house.'" fillcolor="#dbeafe"];
+ a2 [label="model replies\\n'Nice! Dogs are great…'" fillcolor="#f1f5f9"];
+ a3 [label="STEP 2 · call #2\\nsends ONLY: 'How many\\npaws are in my house?'" fillcolor="#fecaca"];
+ a4 [label="model has no idea\\nabout any dogs\\n❌ guesses or asks" fillcolor="#fecaca"];
+ a1->a2; a2->a3 [style=dashed label=" nothing carried over"]; a3->a4; }""", max_w=10, max_h=2.2)
+    st.markdown("**B · Chat session — history is re-sent every turn**")
+    diagram("""digraph { rankdir=LR;
+ b1 [label="STEP 1 · send_message\\n'I have 2 dogs…'" fillcolor="#dbeafe"];
+ b2 [label="model replies\\n'Nice! Dogs are great…'" fillcolor="#f1f5f9"];
+ b3 [label="STEP 2 · send_message\\n'How many paws…?'\\n+ SDK adds: dogs msg + reply" fillcolor="#bbf7d0"];
+ b4 [label="model sees the whole\\nconversation\\n✅ 2 dogs × 4 = 8 paws" fillcolor="#bbf7d0"];
+ b1->b2; b2->b3 [style=dashed label=" history appended"]; b3->b4; }""", max_w=10, max_h=2.2)
+    ca, cb = st.columns(2)
+    with ca.container(border=True):
+        st.markdown("##### A · Stateless (no memory)")
+        st.markdown("**Step 1** — first message:")
+        st.code('r1 = client.models.generate_content(\n    model=MODEL, contents="I have 2 dogs in my house.")', language="python", wrap_lines=True)
+        st.markdown("**Step 2** — second message, a *new, separate* call:")
+        st.code('r2 = client.models.generate_content(\n    model=MODEL, contents="How many paws are in my house?")\n# the model only sees THIS line', language="python", wrap_lines=True)
+    with cb.container(border=True):
+        st.markdown("##### B · Chat session (memory)")
+        st.markdown("**Step 0** — create the chat (it stores the history):")
+        st.code('chat = client.chats.create(model=MODEL)', language="python", wrap_lines=True)
+        st.markdown("**Step 1** — first message:")
+        st.code('r1 = chat.send_message("I have 2 dogs in my house.")', language="python", wrap_lines=True)
+        st.markdown("**Step 2** — second message; the SDK adds the history for you:")
+        st.code('r2 = chat.send_message("How many paws are in my house?")\n# the model sees: dogs msg + reply + this line', language="python", wrap_lines=True)
+    st.markdown("##### ✏️ Edit and run both, side by side")
+    code_lab("m7_paws_code", '''# ---- A · Stateless: two independent calls ----
+a1 = client.models.generate_content(model=MODEL, contents="I have 2 dogs in my house.").text
+a2 = client.models.generate_content(model=MODEL, contents="How many paws are in my house? Answer briefly.").text
+print("A · STEP 1 reply:", a1[:80].replace("\\n", " "))
+print("A · STEP 2 reply:", a2[:200].replace("\\n", " "))
+
+# ---- B · Chat session: history is kept and re-sent ----
+chat = client.chats.create(model=MODEL)                                  # step 0
+b1 = chat.send_message("I have 2 dogs in my house.").text                # step 1
+b2 = chat.send_message("How many paws are in my house? Answer briefly.").text   # step 2
+print("\\nB · STEP 1 reply:", b1[:80].replace("\\n", " "))
+print("B · STEP 2 reply:", b2[:200].replace("\\n", " "))
+
+print("\\nHistory the chat re-sends on every turn:")
+for m in chat.get_history():
+    print(f"  {m.role:>5}: {m.parts[0].text[:70] if m.parts else ''}")''', title="stateless vs chat", note="Makes 4 model calls. Change the facts or the question and see what the stateless version loses.")
 
     def _compare():
         a1 = generate("I have 2 dogs in my house.")[0]
@@ -56,19 +99,26 @@ client.models.generate_content(..., "How many paws are in my house?")   chat.sen
         b1 = response_text(call_with_retry(lambda: chat.send_message("I have 2 dogs in my house.")))
         b2 = response_text(call_with_retry(lambda: chat.send_message("How many paws are in my house? Answer briefly.")))
         hist = [(m.role, m.parts[0].text if m.parts else "") for m in chat.get_history()]
-        return a2, b2, hist
+        return a1, a2, b1, b2, hist
 
-    res = run_live("Run both", _compare, key="m7_paws")
+    res = run_live("🟢 Run both (4 calls)", _compare, key="m7_paws")
     if res:
+        a1, a2, b1, b2, hist = res
         c1, c2 = st.columns(2)
         with c1.container(border=True):
-            st.caption("Stateless — 2nd answer")
-            st.markdown(res[0])
+            st.markdown("**A · Stateless**")
+            st.caption("Step 1 reply")
+            st.markdown(a1)
+            st.caption("Step 2 reply — the model never saw the dogs")
+            st.markdown(a2)
         with c2.container(border=True):
-            st.caption("Chat session — 2nd answer")
-            st.markdown(res[1])
-        with st.expander("chat.get_history()"):
-            for role, text in res[2]:
+            st.markdown("**B · Chat session**")
+            st.caption("Step 1 reply")
+            st.markdown(b1)
+            st.caption("Step 2 reply — the model saw the whole history")
+            st.markdown(b2)
+        with st.expander("chat.get_history() — what B re-sent on step 2"):
+            for role, text in hist:
                 st.markdown(f"**{role.capitalize()}:** {text[:300]}")
 
 # ---------------------------------------------------------------------------
@@ -396,7 +446,7 @@ response = client.chat.completions.create(
     ],
     # tools=[...], tool_choice="auto"   # function calling works too
 )
-print(response.choices[0].message.content)""", language="python")
+print(response.choices[0].message.content)""", language="python", wrap_lines=True)
     compare("Google GenAI SDK roles", "`user` and **`model`** (system goes in `system_instruction`)",
             "OpenAI-style roles", "`system`, `user`, **`assistant`**", bad_good=False)
 

@@ -10,6 +10,7 @@ from core import sim
 from core.llm import generate, get_api_key, run_live, usage
 from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, takeaway
 from core.diagrams import show_dg
+from core.codelab import code_lab
 
 page_header(
     "m52",
@@ -79,18 +80,20 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Your first programmatic call")
     show_dg("m52:2")
+    st.markdown("In your own project the key comes from `.env`; in this app `client` is already set up for you:")
     st.code("""from google import genai
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-response = client.models.generate_content(
-    model="gemini-3.5-flash-lite",
-    contents="Explain quantum computing in simple terms",
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))""", language="python")
+    code_lab("m52_hello_code", """response = client.models.generate_content(
+    model=MODEL,                                        # gemini-3.5-flash-lite
+    contents="Explain quantum computing in simple terms, in 3 sentences.",
 )
 print(response.text)
-print(response.usage_metadata)   # token counts → your bill""", language="python")
+print(response.usage_metadata)   # token counts → your bill""", title="first call")
+    st.markdown("Or use the button version with the usage table:")
     p = st.text_input("Prompt", "Explain quantum computing in simple terms, in 3 sentences.", key="m52_hello")
     res = run_live("Send request", lambda: generate(p), key="m52_hello_run")
     if res:
@@ -138,7 +141,13 @@ with tabs[3]:
     st.markdown("#### What increases token usage?")
     st.markdown("1. **Long, repetitive prompts** (politeness costs money)\n2. **Large outputs** — set `max_output_tokens`\n"
                 "3. **No caching** — paying again for the same answer\n4. **Overkill models** — Pro for a keyword extraction job")
-    st.code('config=types.GenerateContentConfig(max_output_tokens=150)   # "3-bullet summary" needs ~150, not 1000', language="python")
+    code_lab("m52_maxtok", """resp = client.models.generate_content(
+    model=MODEL,
+    contents="Summarise the benefits of exercise in 3 bullets.",
+    config=types.GenerateContentConfig(max_output_tokens=150),   # try 20 to see it cut off
+)
+print(resp.text)
+print("output tokens:", resp.usage_metadata.candidates_token_count)""", title="cap the output length")
 
 with tabs[4]:
     st.subheader("Use the cheapest model that can do the job")
@@ -178,14 +187,21 @@ with tabs[5]:
     st.metric("Monthly savings", f"${(no_cache - with_cache) * 30:,.0f}",
               f"${no_cache:,.0f} → ${with_cache:,.0f} per day", delta_color="off")
     st.markdown("#### 🟢 Live cache demo")
-    st.code("""cache = {}
+    code_lab("m52_cache_code", """import time
+cache = {}
+
 def ask(prompt):
     key = prompt.strip().lower()
     if key in cache:                 # HIT → free & instant
         return cache[key], "HIT"
     answer = client.models.generate_content(model=MODEL, contents=prompt).text
     cache[key] = answer              # MISS → pay once, remember
-    return answer, "MISS" """, language="python")
+    return answer, "MISS"
+
+for q in ["What is the capital of France?", "what is the capital of france? ", "What is the capital of Spain?"]:
+    t0 = time.perf_counter()
+    ans, status = ask(q)
+    print(f"{status:4} {time.perf_counter() - t0:5.2f}s  {q!r} -> {ans[:40]!r}")""", title="cache", note="Makes 2 model calls (the 2nd question is a cache HIT).")
     cache = st.session_state.setdefault("m52_cache", {})
     cq = st.text_input("Ask something (then ask it again)", "What is the capital of France?", key="m52_cache_q")
 
@@ -230,16 +246,32 @@ with tabs[6]:
             st.success(f"Succeeded on attempt {len(rows)} after waiting {waited:g}s in total.")
         else:
             st.error("All attempts failed → show a friendly message, don't crash: “Gemini is busy, please try again.”")
-    st.code('''def call_with_retry(fn, max_attempts=4, base_delay=2):
+    code_lab("m52_retry_code", """import time, random
+
+class ServerError(Exception): pass          # stands for a 5xx response
+class ClientError(Exception): pass          # stands for a 4xx response
+
+def flaky_call(fail_rate=0.6):
+    if random.random() < fail_rate:
+        raise ServerError("503 Service Unavailable")
+    return "200 OK"
+
+def call_with_retry(fn, max_attempts=4, base_delay=0.5):
     for attempt in range(1, max_attempts + 1):
         try:
             return fn()
-        except ServerError:                 # 5xx: transient → retry
+        except ServerError as e:                 # 5xx: transient -> retry
+            print(f"attempt {attempt} failed: {e}")
             if attempt == max_attempts:
                 raise
-            time.sleep(base_delay * 2 ** (attempt - 1))   # 2s, 4s, 8s
-        except ClientError:                 # 4xx: bad key / bad request → don't retry
-            raise''', language="python")
+            wait = base_delay * 2 ** (attempt - 1)   # 0.5s, 1s, 2s ...
+            print(f"   waiting {wait}s then retrying")
+            time.sleep(wait)
+        except ClientError:                      # 4xx: bad key / bad request -> never retry
+            raise
+
+print(call_with_retry(flaky_call))""", title="retry with exponential backoff", needs_key=False,
+             note="No API key needed — a pretend flaky server. Change fail_rate to 1.0 to watch all attempts fail.")
     st.caption("This is the exact pattern from your `chatbot_app.py` — and it powers every live demo in this app (`core/llm.py`).")
     st.markdown("#### Rate limiting")
     st.markdown("Most APIs cap requests per minute → `429 Too Many Requests`. Protect yourself with a limiter (only N calls per "

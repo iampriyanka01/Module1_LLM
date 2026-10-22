@@ -8,6 +8,7 @@ import streamlit as st
 
 from core.ui import analogy, compare, definition, diagram, page_header, quiz, stepper, takeaway
 from core.diagrams import show_dg
+from core.codelab import code_lab
 
 page_header(
     "m51",
@@ -171,10 +172,13 @@ with tabs[5]:
             st.markdown(f"**Client:** this app · **Server:** jsonplaceholder · **API:** `{method} {path}` · **Format:** JSON")
         except Exception as e:  # noqa: BLE001
             st.error(f"Network error: {e}. (Are you offline or behind a firewall?)")
-    st.code(f"""import requests
-resp = requests.{method.lower()}("https://jsonplaceholder.typicode.com{path}"{', json={...}' if body else ''})
-print(resp.status_code)   # 200 / 201 / 404 ...
-print(resp.json())        # parsed JSON → Python dict""", language="python")
+    code_lab(f"m51_requests_{method}_{path}", f"""import requests
+
+resp = requests.{method.lower()}("https://jsonplaceholder.typicode.com{path}"{', json={"title": "hello", "body": "from my code", "userId": 1}' if body else ''})
+print("status :", resp.status_code)          # 200 / 201 / 404 ...
+print("type   :", resp.headers.get("content-type"))
+print("body   :", resp.text[:300])           # parsed JSON → Python dict with resp.json()""", title="the same request in Python", needs_key=False,
+             note="No API key needed. Change the URL, method or body and run. (Needs internet access.)")
 
 with tabs[6]:
     show_dg("m51:6")

@@ -156,3 +156,11 @@ def diagram(dot: str, caption: str | None = None, max_w: float = 8.5, max_h: flo
     st.graphviz_chart(dot, width="content")
     if caption:
         st.caption(caption)
+
+
+def mdtable(headers: list[str], rows: list[tuple]):
+    """Markdown table (renders **bold** and `code`, which st.dataframe does not)."""
+    esc = lambda x: str(x).replace("|", "\\|").replace("\n", " ")
+    lines = ["| " + " | ".join(headers) + " |", "|" + "|".join(["---"] * len(headers)) + "|"]
+    lines += ["| " + " | ".join(esc(c) for c in r) + " |" for r in rows]
+    st.markdown("\n".join(lines))

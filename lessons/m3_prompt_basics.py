@@ -4,6 +4,7 @@ import streamlit as st
 from core.llm import generate, run_live
 from core.ui import analogy, compare, definition, page_header, quiz, takeaway
 from core.diagrams import show_dg
+from core.codelab import code_lab
 
 page_header(
     "m3",
@@ -316,7 +317,16 @@ with tabs[5]:
     except KeyError as e:
         dyn = None
         st.error(f"Unknown placeholder {e} — available: {', '.join(values)}")
-    st.code('prompt = template.format(role=role, topic=topic, style=style, audience=audience, text=user_text)', language="python")
+    code_lab("m3_template_code", """template = "You are a {role}. Summarize the following {topic} in {style} style for a {audience} audience:\\n\\n{text}"
+
+prompt = template.format(
+    role="financial analyst", topic="budget report", style="concise", audience="non-finance",
+    text="Q3 revenue grew 15% to Rs 12 Cr; net margin fell from 18% to 14%.",
+)
+print(prompt)
+# remove the next line's '#' to send it to the model:
+# print(client.models.generate_content(model=MODEL, contents=prompt).text)""", title="fill a template", needs_key=False,
+             note="Pure Python — change the values or the template and run. Uncomment the last line to call the model.")
     if dyn:
         res = run_live("Run the generated prompt", lambda: generate(dyn)[0], key="m3_dyn")
         if res:

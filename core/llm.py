@@ -321,10 +321,10 @@ def generate_many(prompts, *, system=None, temperature=None, max_tokens=None, mo
     return results
 
 
-def stream(prompt, *, system=None, temperature=None, model=None):
+def stream(prompt, *, system=None, temperature=None, model=None, max_tokens=None):
     """Yield text chunks as they arrive (generate_content_stream)."""
     client = get_client()
-    cfg = make_config(system, temperature, model=model or get_model())
+    cfg = make_config(system, temperature, max_tokens=max_tokens, model=model or get_model())
     for chunk in client.models.generate_content_stream(model=model or get_model(), contents=prompt, config=cfg):
         if getattr(chunk, "text", None):
             yield chunk.text
