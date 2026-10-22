@@ -44,7 +44,12 @@ with tabs[0]:
         ("4 · Company documents", "“What's our refund policy?” lives in a PDF", "Document loaders + retrieval: answer from *your* data"),
         ("5 · Scale", "100 tickets at once, live typing, many users", "`.batch()/.abatch()`, `.stream()/.astream()`, async chains"),
     ]
-    st.dataframe(pd.DataFrame(probs, columns=["Problem", "In plain Python…", "LangChain gives you"]), hide_index=True, width="stretch")
+    mdtable(["Problem", "In plain Python…", "LangChain gives you"], probs)
+    st.markdown("##### The 4 pillars of LangChain (with HR examples)")
+    cards([("⛓️ Chaining", "Link LLM steps in a fixed order. *HR:* extract job title → summarise résumé → recommend role."),
+           ("🧠 Memory", "Keep chat history across queries. *HR:* remember the user has 5 years' experience when they ask about promotions."),
+           ("🛠️ Tools", "Give the LLM maths, search, APIs. *HR:* compute a 20% salary hike exactly instead of guessing."),
+           ("📚 Retrieval", "Answer from private documents. *HR:* look up the exact maternity-leave policy in the handbook.")], cols=4)
 
 with tabs[1]:
     st.subheader("10 capabilities, one HR assistant")
@@ -88,6 +93,11 @@ with tabs[2]:
         ("1 · Normal call", "`generate_content()` / `invoke()`", "Blank screen, then the **whole** answer at once", "**Blocked** until done", "Batch jobs, short answers"),
         ("2 · Streaming", "`generate_content_stream()` / `stream()`", "First words after ~1 s, then text keeps flowing", "Still blocked, but your UI updates", "One user in a chat window"),
         ("3 · Async streaming", "`client.aio…stream()` / `astream()`", "Same as streaming", "**Not blocked** — can serve other users or tasks meanwhile", "Web servers, many users"),
+    ])
+    st.markdown("##### Sync vs async, single output vs bulk output")
+    mdtable(["", "Sync (blocking)", "Async (non-blocking)"], [
+        ("**Single output** (speed)", "`.stream()` — text arrives token by token; blocks other code", "`.astream()` — streams while the app logs, checks databases, serves other users"),
+        ("**Bulk output** (volume)", "`.batch()` — many inputs at once; waits for all", "`.abatch()` — many inputs at once; app keeps working"),
     ])
     st.markdown("**1 · Normal call**")
     diagram("""digraph { rankdir=LR; a1 [label="Send request" fillcolor="#dbeafe"]; a2 [label="…wait while the WHOLE answer is written…\\n(user stares at a blank screen)" fillcolor="#fecaca"]; a3 [label="Show everything\\nat once" fillcolor="#bbf7d0"]; a1->a2->a3; }""", max_w=9, max_h=1.4)
@@ -712,6 +722,23 @@ print(guard("Hi guys, the CEO is stupid. Call 98765 43210 ASAP."))''', title="Ch
 
 
 with tabs[7]:
+    st.markdown("#### 🏭 The production architecture cheat sheet")
+    diagram("""digraph { rankdir=LR; nodesep=0.3;
+ n0 [label="1 · Input scale\\nasync batching\\n.abatch()" fillcolor="#f1f5f9"];
+ n1 [label="2 · LangChain pipeline\\nMemory · Retrieval\\n(PDFs) · Tools" fillcolor="#dbeafe"];
+ n2 [label="3 · LLM engine\\nlive UI feedback\\nvia .astream()" fillcolor="#dbeafe"];
+ n3 [label="4 · Quality control\\nPydantic parser" fillcolor="#fef9c3"];
+ n4 [label="5 · Security checkpoint\\nChecker · Corrector\\n· Rail (Guardrails)" fillcolor="#fed7aa"];
+ n5 [label="6 · Final output\\nvalidated JSON,\\nproduction-ready" fillcolor="#bbf7d0"];
+ n0->n1->n2->n3->n4->n5; n3->n2 [style=dashed color="#dc2626" fontcolor="#dc2626" label=" 5 fallbacks: log, retry,\\n default, clean-up" constraint=false]; }""", max_w=10, max_h=3.4)
+    mdtable(["Step", "Question it answers", "Tool from this module"], [
+        ("1 · Input scale", "How do I process 1,000 résumés?", "`.batch()` / `.abatch()`"),
+        ("2 · Pipeline", "How does it remember, read PDFs and use tools?", "Memory · Retrieval · Tools"),
+        ("3 · LLM engine + live feedback", "How does the user see progress?", "`.stream()` / `.astream()`"),
+        ("4 · Quality control", "Is the output the right shape?", "Pydantic + the 5 fallbacks"),
+        ("5 · Security checkpoint", "Is it safe and on-policy?", "Checker → Corrector → Rail → Guard"),
+        ("6 · Final output", "What does the next system receive?", "Validated JSON"),
+    ])
     takeaway([
         "LangChain packages prompts, chains, memory, tools, retrieval, streaming, batching and deployment.",
         "Streaming cuts perceived latency; async streaming keeps apps responsive for many users.",

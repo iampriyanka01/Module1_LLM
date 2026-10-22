@@ -9,7 +9,7 @@ import streamlit as st
 from core import sim
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call,
                       make_config, response_text, run_live)
-from core.ui import analogy, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.ui import analogy, compare, definition, diagram, mdtable, page_header, quiz, stepper, takeaway
 from core.codelab import code_lab
 from core.diagrams import show_dg
 
@@ -74,24 +74,7 @@ with tabs[0]:
         st.code('r1 = chat.send_message("I have 2 dogs in my house.")', language="python", wrap_lines=True)
         st.markdown("**Step 2** — second message; the SDK adds the history for you:")
         st.code('r2 = chat.send_message("How many paws are in my house?")\n# the model sees: dogs msg + reply + this line', language="python", wrap_lines=True)
-    st.markdown("##### ✏️ Edit and run both, side by side")
-    code_lab("m7_paws_code", '''# ---- A · Stateless: two independent calls ----
-a1 = client.models.generate_content(model=MODEL, contents="I have 2 dogs in my house.").text
-a2 = client.models.generate_content(model=MODEL, contents="How many paws are in my house? Answer briefly.").text
-print("A · STEP 1 reply:", a1[:80].replace("\\n", " "))
-print("A · STEP 2 reply:", a2[:200].replace("\\n", " "))
-
-# ---- B · Chat session: history is kept and re-sent ----
-chat = client.chats.create(model=MODEL)                                  # step 0
-b1 = chat.send_message("I have 2 dogs in my house.").text                # step 1
-b2 = chat.send_message("How many paws are in my house? Answer briefly.").text   # step 2
-print("\\nB · STEP 1 reply:", b1[:80].replace("\\n", " "))
-print("B · STEP 2 reply:", b2[:200].replace("\\n", " "))
-
-print("\\nHistory the chat re-sends on every turn:")
-for m in chat.get_history():
-    print(f"  {m.role:>5}: {m.parts[0].text[:70] if m.parts else ''}")''', title="stateless vs chat", note="Makes 4 model calls. Change the facts or the question and see what the stateless version loses.")
-
+    st.markdown("##### 🟢 Run both and compare")
     def _compare():
         a1 = generate("I have 2 dogs in my house.")[0]
         a2 = generate("How many paws are in my house? Answer briefly.")[0]
@@ -120,6 +103,24 @@ for m in chat.get_history():
         with st.expander("chat.get_history() — what B re-sent on step 2"):
             for role, text in hist:
                 st.markdown(f"**{role.capitalize()}:** {text[:300]}")
+
+    st.markdown("##### ✏️ Edit and run both, side by side")
+    code_lab("m7_paws_code", '''# ---- A · Stateless: two independent calls ----
+a1 = client.models.generate_content(model=MODEL, contents="I have 2 dogs in my house.").text
+a2 = client.models.generate_content(model=MODEL, contents="How many paws are in my house? Answer briefly.").text
+print("A · STEP 1 reply:", a1[:80].replace("\\n", " "))
+print("A · STEP 2 reply:", a2[:200].replace("\\n", " "))
+
+# ---- B · Chat session: history is kept and re-sent ----
+chat = client.chats.create(model=MODEL)                                  # step 0
+b1 = chat.send_message("I have 2 dogs in my house.").text                # step 1
+b2 = chat.send_message("How many paws are in my house? Answer briefly.").text   # step 2
+print("\\nB · STEP 1 reply:", b1[:80].replace("\\n", " "))
+print("B · STEP 2 reply:", b2[:200].replace("\\n", " "))
+
+print("\\nHistory the chat re-sends on every turn:")
+for m in chat.get_history():
+    print(f"  {m.role:>5}: {m.parts[0].text[:70] if m.parts else ''}")''', title="stateless vs chat", note="Makes 4 model calls. Change the facts or the question and see what the stateless version loses.")
 
 # ---------------------------------------------------------------------------
 with tabs[1]:
@@ -345,6 +346,36 @@ with tabs[5]:
     st.line_chart(df, height=260)
     st.caption(f"After {turns} turns: full history sends **{cum['Full history']:,}** tokens in total vs "
                f"**{cum['Summary + last 2 turns']:,}** with summary + recent turns. Always ask: does the model need this, and is it worth paying for?")
+    st.markdown("---")
+    st.markdown("#### 📂 Your course scripts, mapped to the strategies")
+    mdtable(["Script", "Technique", "What it shows", "Limitation"], [
+        ("`1_no_context_management.py`", "**No memory**", "`generate_content` in a `while` loop — every question is a new call", "“What other movies has *he* directed?” fails: the model never saw the earlier question"),
+        ("`2.1_chat_bot.py` · `2.2_context_management.py`", "**SDK chat session**", "`client.chats.create(...)` + `send_message(...)`; `get_history()` shows the stored turns", "History grows forever → cost and context-window limits"),
+        ("`4_context_management_openai.py` · `5_demo…OpenAILibrary.py` · `7_updated_simplecode…ipynb`", "**Manual `messages` list** (OpenAI-compatible endpoint)", "You append each `assistant` reply and the next `user` message, then re-send the whole list", "You manage history and size yourself"),
+        ("`3_contextManagementStrategiesWithSummarization.py`", "**Summarise at a threshold**", "When `len(history) ≥ SUMMARY_THRESHOLD (6)` the history is replaced by one summary", "The last few turns are summarised away too — recent wording is lost"),
+        ("`chatbot_app.py`", "**Auto-summary every 5 turns** (Streamlit)", "A running summary shown in the sidebar, built by a separate call so it does not pollute the chat", "Shown but not fed back — see the *Your auto-summary chatbot* tab where it is"),
+    ])
+    st.markdown("###### ✏️ Simulate your summarise-and-reset loop (no API key)")
+    st.caption("This replays the logic of `3_contextManagementStrategiesWithSummarization.py` with a fake summariser so you can see "
+               "how the history length changes. Set `KEEP_LAST = 2` to keep the last two messages next to the summary.")
+    code_lab("m7_threshold_sim", '''SUMMARY_THRESHOLD = 6      # from your script
+KEEP_LAST = 0              # try 2 -> "summary + last 2 messages"
+
+def fake_summarize(history):                 # stands in for the LLM summary call
+    return f"[summary of {len(history)} messages]"
+
+history = []
+for turn in range(1, 13):
+    history.append({"role": "user", "text": f"question {turn}"})
+    if len(history) >= SUMMARY_THRESHOLD:
+        recent = history[-KEEP_LAST:] if KEEP_LAST else []
+        history = [{"role": "system", "text": fake_summarize(history)}] + recent
+        print(f"turn {turn:2}: SUMMARISED -> history is now {len(history)} item(s): {[m['text'] for m in history]}")
+    else:
+        print(f"turn {turn:2}: history has {len(history)} item(s)")
+    history.append({"role": "assistant", "text": f"answer {turn}"})''',
+             title="summary threshold simulation", needs_key=False)
+
 
 # ---------------------------------------------------------------------------
 with tabs[6]:
@@ -369,8 +400,9 @@ with tabs[6]:
     ss.setdefault("sb_summary", "")
     ss.setdefault("sb_turns", 0)
     ss.setdefault("sb_stats", [])
+    ss.setdefault("sb_sent", None)
     if st.button("🔄 Reset conversation", key="sb_reset"):
-        ss.sb_msgs, ss.sb_summary, ss.sb_turns, ss.sb_stats = [], "", 0, []
+        ss.sb_msgs, ss.sb_summary, ss.sb_turns, ss.sb_stats, ss.sb_sent = [], "", 0, [], None
     if ss.sb_summary:
         st.info(f"📋 **Running summary (after {ss.sb_turns - ss.sb_turns % every} turns):** {ss.sb_summary}")
     for m in ss.sb_msgs:
@@ -381,10 +413,13 @@ with tabs[6]:
         msgs = ss.sb_msgs
         if mode == "Summary + last N turns" and ss.sb_summary:
             recent = msgs[-(keep_n * 2 - 1):]  # last N user turns incl. the new one
+            dropped = msgs[:len(msgs) - len(recent)]
             pre = [{"role": "user", "parts": [{"text": f"(Context summary of earlier conversation: {ss.sb_summary})"}]},
                    {"role": "model", "parts": [{"text": "Understood, I'll keep that in mind."}]}]
+            summary_sent = ss.sb_summary
         else:
-            recent, pre = msgs, []
+            recent, pre, dropped, summary_sent = msgs, [], [], None
+        ss.sb_sent = {"mode": mode, "summary": summary_sent, "recent": list(recent), "dropped": list(dropped)}
         return pre + [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]} for m in recent]
 
     if llm_ready():
@@ -403,8 +438,11 @@ with tabs[6]:
                     log_call(q, resp, time.perf_counter() - t0, kind="chat")
                     u = resp.usage_metadata
                     full = sum(sim.estimate_tokens(m["content"]) for m in ss.sb_msgs)
-                    ss.sb_stats.append({"turn": ss.sb_turns, "input tokens sent": (u.prompt_token_count if u else None),
-                                        "≈ full-history tokens": full})
+                    sent = ss.sb_sent or {}
+                    n_sent = len(sent.get("recent", [])) + (2 if sent.get("summary") else 0)
+                    ss.sb_stats.append({"turn": ss.sb_turns, "mode": "summary + recent" if sent.get("summary") else "full history",
+                                        "messages sent": n_sent, "tokens sent": (u.prompt_token_count if u else None),
+                                        "tokens if full history": full})
                 except Exception as e:  # noqa: BLE001
                     ans = friendly_error(e)
                 st.markdown(ans)
@@ -414,15 +452,33 @@ with tabs[6]:
                     convo = "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in ss.sb_msgs)
                     prev = f"Previous summary: {ss.sb_summary}\n\n" if ss.sb_summary else ""
                     try:
-                        ss.sb_summary = generate(prev + "Summarize the following conversation in 3-4 concise sentences, capturing "
-                                                 "key facts about the user, topics and decisions:\n\n" + convo)[0]
+                        ss.sb_summary = generate(prev + "Summarize the conversation below in AT MOST 2 short sentences (under 45 words). "
+                                                 "Keep only durable facts about the user, topics and decisions.\n\n" + convo)[0]
                         st.toast(f"📋 New summary after {ss.sb_turns} turns")
                     except Exception as e:  # noqa: BLE001
                         st.warning(f"Summary failed: {e}")
                 st.rerun()
+    if ss.sb_sent:
+        sent = ss.sb_sent
+        st.markdown("##### 📤 Exactly what the model received on the last turn")
+        if sent["summary"]:
+            st.caption(f"Mode: **summary + last {keep_n} turns** — the model did NOT see the older messages, only the summary and the recent turns.")
+        else:
+            st.caption("Mode: **full history** — every message so far was sent.")
+        if sent["summary"]:
+            st.info(f"📋 **Summary sent (replaces {len(sent['dropped'])} older messages):** {sent['summary']}")
+        with st.container(border=True):
+            for m in sent["recent"]:
+                st.markdown(f"✅ **{m['role'].capitalize()}:** {m['content'][:160]}{'…' if len(m['content']) > 160 else ''}")
+        if sent["dropped"]:
+            with st.expander(f"🗑️ {len(sent['dropped'])} older messages NOT sent (only their summary was)"):
+                for m in sent["dropped"]:
+                    st.markdown(f"~~{m['role'].capitalize()}: {m['content'][:160]}~~")
     if ss.sb_stats:
         st.dataframe(pd.DataFrame(ss.sb_stats), hide_index=True, width="stretch")
-        st.caption("Switch memory mode to *Summary + last N turns* after a few turns and watch input tokens stop growing.")
+        st.caption("Switch memory mode to *Summary + last N turns* after a few turns and watch *tokens sent* stop growing while "
+                   "*tokens if full history* keeps climbing. The summary only kicks in after the first summary is written "
+                   "(every N user turns).")
 
 # ---------------------------------------------------------------------------
 with tabs[7]:
@@ -449,6 +505,26 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)""", language="python", wrap_lines=True)
     compare("Google GenAI SDK roles", "`user` and **`model`** (system goes in `system_instruction`)",
             "OpenAI-style roles", "`system`, `user`, **`assistant`**", bad_good=False)
+    st.markdown("###### ✏️ Multi-turn with the OpenAI library (your career-counsellor example)")
+    st.markdown("The library is stateless too: **you** append each reply and the next question to `messages` and send it all again.")
+    code_lab("m7_openai_multi", '''from openai import OpenAI
+
+oa = OpenAI(api_key=API_KEY, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+
+messages = [
+    {"role": "system", "content": "You are a career counselor. Give clear, empathetic advice. Keep answers under 80 words."},
+    {"role": "user", "content": "Hi, I'm Nikhil. I enjoy math and programming and I just completed my B.Sc."},
+]
+r = oa.chat.completions.create(model=MODEL, messages=messages)
+reply = r.choices[0].message.content
+print("Assistant:", reply, "\\n")
+
+messages.append({"role": "assistant", "content": reply})                      # 1) keep the reply
+messages.append({"role": "user", "content": "What career paths should I consider?"})   # 2) add the next question
+r = oa.chat.completions.create(model=MODEL, messages=messages)               # 3) send EVERYTHING again
+print("Assistant:", r.choices[0].message.content)
+print("\\nmessages sent on call 2:", len(messages))''', title="OpenAI library, multi-turn",
+             note="Needs the `openai` package (it is in requirements.txt) and a Gemini key. Makes 2 calls.")
 
 
 # ---------------------------------------------------------------------------

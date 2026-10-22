@@ -76,6 +76,7 @@ def _namespace(extra: dict | None) -> dict:
         "MODEL": get_model(),
         "llm": get_llm(),                  # LangChain chat model (None if not installed)
         "generate": generate,
+        "API_KEY": key,                    # your own key, for code that builds its own client (e.g. the OpenAI library)
         "new_client": lambda: genai.Client(api_key=key),   # use inside asyncio code (fresh client per event loop)
     }
     ns.update(extra or {})

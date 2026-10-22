@@ -206,13 +206,13 @@ DG["m8:2"] = (raw(node("t", "Tool card", "blue") + node("n", "name\\nget_weather
                    node("l", "LLM reads the card\\nand decides to call it", "green") + "t -> n; t -> d; t -> p; n -> l; d -> l; p -> l;"), "The LLM sees only the card, not your code.")
 DG["m8:4"] = (chain([("User question", "grey"), ("LLM picks a tool\\nand arguments", "blue"), ("Your code\\nruns the tool", "yellow"), ("Result goes back\\nto the LLM", "orange"), ("Final answer", "green")]),
               "The LLM chooses, your code runs, the LLM answers.")
-DG["m8:5"] = (chain([("User", "grey"), ("LLM tool call", "blue"), ("get_weather()", "yellow"), ("Result", "orange"), ("LLM writes\\nthe answer", "green")],
+DG["m8:6"] = (chain([("User", "grey"), ("LLM tool call", "blue"), ("get_weather()", "yellow"), ("Result", "orange"), ("LLM writes\\nthe answer", "green")],
                     extra='bug [label="Common bug: result printed,\\nnever sent back to the LLM" fillcolor="#fecaca"]; n3 -> bug [style=dashed color="#dc2626"];'),
               "Close the loop: the tool result must go back to the model.")
-DG["m8:6"] = (raw(node("s1", "Sequential", "grey") + node("a1", "Tool A 2s", "yellow") + node("b1", "Tool B 2s", "yellow") + node("c1", "Tool C 2s", "yellow") + node("t1", "Total 6s", "red") +
+DG["m8:7"] = (raw(node("s1", "Sequential", "grey") + node("a1", "Tool A 2s", "yellow") + node("b1", "Tool B 2s", "yellow") + node("c1", "Tool C 2s", "yellow") + node("t1", "Total 6s", "red") +
                    node("s2", "Fan-out / fan-in", "grey") + node("a2", "Tool A 2s", "yellow") + node("b2", "Tool B 2s", "yellow") + node("c2", "Tool C 2s", "yellow") + node("t2", "Total about 2s", "green") +
                    "s1 -> a1 -> b1 -> c1 -> t1; s2 -> a2; s2 -> b2; s2 -> c2; a2 -> t2; b2 -> t2; c2 -> t2;"), "Independent tools can run at the same time.")
-DG["m8:7"] = (raw(node("c", "Tool call", "grey") + node("t", "Try it", "yellow", "diamond") + node("ok", "Result to LLM", "green") + node("er", "Catch the error", "red") +
+DG["m8:8"] = (raw(node("c", "Tool call", "grey") + node("t", "Try it", "yellow", "diamond") + node("ok", "Result to LLM", "green") + node("er", "Catch the error", "red") +
                    node("j", "Send error as JSON to the LLM", "orange") + node("l", "LLM explains or retries", "blue") + 'c -> t; t -> ok [label=" works"]; t -> er [label=" fails"]; er -> j -> l;'), "Fail at the tool level, not the app level.")
 
 # ============================== Module 9 ==============================
@@ -240,3 +240,6 @@ def show_dg(key: str, max_w: float = 8.5, max_h: float = 5.0):
 DG["m4:6"] = (chain([("Question", "grey"), ("Thought", "blue"), ("Action\\n(tool call)", "orange"), ("Observation\\n(tool result)", "green"), ("Final answer", "grey")],
                     loops=[(3, 1, "think again")]),
               "ReAct loop: the model thinks and picks an action, your code runs the tool, the observation goes back in.")
+
+DG["m8:5"] = (raw(node("q", "Your question", "grey") + node("m", "LLM + tool_config\\nmode: AUTO / ANY / NONE", "blue") + node("t1", "Your function\\ncards", "yellow") + node("t2", "Built-in tools\\nSearch · Code · URL", "green") + node("r", "Call a tool\\nor answer", "orange")
+              + "q->m; t1->m; t2->m; m->r;"), "Which tools the model may use, and whether it must, may or must not call one.")

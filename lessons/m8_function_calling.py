@@ -15,7 +15,8 @@ import streamlit as st
 from pydantic import BaseModel, ValidationError
 
 from core.llm import call_with_retry, get_client, get_model, llm_ready, log_call, make_config, types
-from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, compare, definition, diagram, mdtable, page_header, quiz, stepper, takeaway
+from core.codelab import code_lab
 from core.diagrams import show_dg
 
 page_header(
@@ -39,9 +40,71 @@ RATES_TO_USD = {"USD": 1.0, "INR": 1 / 83.2, "EUR": 1 / 0.92, "GBP": 1 / 0.79, "
 STOCKS = {"TSLA": 252.34, "AAPL": 226.10, "GOOGL": 171.50, "MSFT": 431.20, "INFY": 19.40, "RELIANCE.NS": 35.10}
 
 
+def weather_key() -> str | None:
+    """Typed in the app → .env / environment / Streamlit secrets (WEATHER_API_KEY or OPENWEATHER_API_KEY)."""
+    try:
+        typed = st.session_state.get("weather_key")
+    except Exception:  # noqa: BLE001 - when called from a worker thread
+        typed = None
+    if typed:
+        return typed
+    k = os.getenv("WEATHER_API_KEY") or os.getenv("OPENWEATHER_API_KEY")
+    if not k:
+        try:
+            k = st.secrets.get("WEATHER_API_KEY") or st.secrets.get("OPENWEATHER_API_KEY")
+        except Exception:  # noqa: BLE001 - no secrets file
+            k = None
+    return k
+
+
+def _save_weather_key(widget_key: str):
+    st.session_state["weather_key"] = (st.session_state.get(widget_key) or "").strip()
+
+
+def weather_key_box(where: str = "a"):
+    """Where to get an OpenWeatherMap key + a box to paste it (used when .env / secrets have none)."""
+    have = weather_key()
+    with st.expander("🌦️ Weather API key — where to get it and where to type it", expanded=not have):
+        if have:
+            src = "typed in this app" if st.session_state.get("weather_key") else ".env / environment / Streamlit secrets"
+            st.success(f"A weather key is available ({src}) → the weather tool returns **live OpenWeatherMap data**.")
+        else:
+            st.info("No weather key found → the weather tool uses a **deterministic mock** (fine for learning). "
+                    "Add a free key below for live data.")
+        st.markdown(
+            "**How to get a free OpenWeatherMap key**\n\n"
+            "1. Create an account: [home.openweathermap.org/users/sign_up](https://home.openweathermap.org/users/sign_up) "
+            "(confirm the email they send).\n"
+            "2. Open your keys page: [home.openweathermap.org/api_keys](https://home.openweathermap.org/api_keys). A *Default* key already "
+            "exists — copy it, or type a name and press **Generate**.\n"
+            "3. **Wait.** A brand-new key can return `401 Invalid API key` for a while (it can take up to a couple of hours to activate). "
+            "That is the most common “my key doesn't work” problem.\n"
+            "4. This app calls the free **Current Weather Data** endpoint "
+            "(`https://api.openweathermap.org/data/2.5/weather`) — see the [API docs](https://openweathermap.org/current).\n"
+            "5. Keep it secret: put `WEATHER_API_KEY=your_key` in `.env` (never commit it) or in Streamlit Cloud → *Settings → Secrets*. "
+            "If it ever leaks, generate a new one on the keys page.")
+        c1, c2 = st.columns([3, 1])
+        c1.text_input("Paste your OpenWeatherMap key (kept only for this browser session)", type="password",
+                      key=f"weather_key_widget_{where}", on_change=_save_weather_key, args=(f"weather_key_widget_{where}",), placeholder="e.g. 0123456789abcdef0123456789abcdef")
+        if c2.button("Test the key", key=f"weather_key_test_{where}", disabled=not weather_key()):
+            try:
+                r = requests.get("https://api.openweathermap.org/data/2.5/weather",
+                                 params={"q": "London", "appid": weather_key(), "units": "metric"}, timeout=8)
+                if r.status_code == 200:
+                    st.success(f"✅ Works — London is {r.json()['main']['temp']} °C right now.")
+                elif r.status_code == 401:
+                    st.error("401 — key rejected. If it is new, wait and retry; otherwise check for typos or extra spaces.")
+                elif r.status_code == 429:
+                    st.warning("429 — too many requests on the free plan; wait a minute.")
+                else:
+                    st.error(f"{r.status_code}: {r.text[:150]}")
+            except Exception as e:  # noqa: BLE001
+                st.error(f"Network error: {e}")
+
+
 def get_weather_info(city: str, date: str | None = None) -> dict:
-    """Real OpenWeatherMap data if WEATHER_API_KEY is set, otherwise a deterministic mock."""
-    key = os.getenv("WEATHER_API_KEY") or os.getenv("OPENWEATHER_API_KEY")
+    """Real OpenWeatherMap data if a weather key is available, otherwise a deterministic mock."""
+    key = weather_key()
     if key:
         r = requests.get("https://api.openweathermap.org/data/2.5/weather",
                          params={"q": city, "appid": key, "units": "metric"}, timeout=8)
@@ -120,7 +183,7 @@ TOOL_CARDS = [
 ]
 
 tabs = st.tabs(["Why tools?", "Types of tools", "🪪 Tool card anatomy", "🔄 Lifecycle", "🟢 Live tool loop",
-                "🌦️ Your weather script, reviewed", "⚡ Async fan-out / fan-in", "🧯 Error handling", "🧾 Key takeaways", "✅ Knowledge check"])
+                "🎛️ Tool options explained", "🌦️ Your weather script, reviewed", "⚡ Async fan-out / fan-in", "🧯 Error handling", "🧾 Key takeaways", "✅ Knowledge check"])
 
 # ---------------------------------------------------------------------------
 with tabs[0]:
@@ -218,16 +281,23 @@ digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica
  U->L1->J->B->R->L2; }""")
 
 # ---------------------------------------------------------------------------
-def run_tool_loop(question: str, enabled: list[str], max_rounds: int = 5):
+def run_tool_loop(question: str, enabled: list[str], max_rounds: int = 5, mode: str = "AUTO"):
     client, model = get_client(), get_model()
     decls = [c for c in TOOL_CARDS if c["name"] in enabled]
-    cfg = make_config(tools=[types.Tool(function_declarations=decls)],
-                      system=f"Today's date is {date.today().isoformat()}. Use the tools for any live data or maths. "
-                             "If a tool returns an error, explain it plainly to the user.")
+    sys_msg = (f"Today's date is {date.today().isoformat()}. Use the tools for any live data or maths. "
+               "If a tool returns an error, explain it plainly to the user.")
+    tools = [types.Tool(function_declarations=decls)]
+
+    def _cfg(m):
+        fcc = types.FunctionCallingConfig(mode=m, allowed_function_names=enabled) if m == "ANY" else types.FunctionCallingConfig(mode=m)
+        return make_config(tools=tools, system=sys_msg, tool_config=types.ToolConfig(function_calling_config=fcc))
+    cfg = _cfg(mode)
     contents = [types.Content(role="user", parts=[types.Part.from_text(text=question)])]
     trace = []
     for rnd in range(1, max_rounds + 1):
         t0 = time.perf_counter()
+        if rnd == 2 and mode == "ANY":
+            cfg = _cfg("AUTO")          # ANY forces a call every time — switch back so the model can finally answer in text
         resp = call_with_retry(lambda: client.models.generate_content(model=model, contents=contents, config=cfg))
         log_call(question, resp, time.perf_counter() - t0, kind="tool-loop")
         calls = resp.function_calls or []
@@ -268,8 +338,16 @@ def show_trace(trace):
 with tabs[4]:
     st.subheader("Watch Gemini choose tools, your code run them, and the answer come back")
     show_dg("m8:4")
-    weather_src = "OpenWeatherMap (WEATHER_API_KEY found)" if (os.getenv("WEATHER_API_KEY") or os.getenv("OPENWEATHER_API_KEY")) else "mock weather (add WEATHER_API_KEY to .env for live data)"
-    st.caption(f"Weather source: {weather_src} · stock & FX data are mock services so results are reproducible.")
+    weather_key_box("live")
+    st.caption(f"Weather source: {'OpenWeatherMap (live)' if weather_key() else 'mock weather (add a key above for live data)'} · "
+               "stock & FX data are mock services so results are reproducible.")
+    st.markdown("##### The four tools in this demo")
+    mdtable(["Tool", "Type", "What it does", "Inputs", "Data", "Try asking"], [
+        ("`get_weather_info`", "👀 Data retrieval", "Current weather for a city", "`city` (required), `date` (optional)", "Live if you add a weather key, else mock", "“Do I need an umbrella in Pune?”"),
+        ("`get_stock_price`", "👀 Data retrieval", "Latest price in USD for a ticker", "`ticker`", "Mock: TSLA, AAPL, GOOGL, MSFT, INFY, RELIANCE.NS", "“What is Apple's share price?”"),
+        ("`convert_currency`", "🧮 Computation", "Converts between USD, INR, EUR, GBP, JPY, AED", "`amount`, `from_currency`, `to_currency`", "Mock fixed rates", "“Convert 500 USD to INR”"),
+        ("`calculate`", "🧮 Computation", "Exact arithmetic (safe evaluator, no `eval`)", "`expression`", "Local Python", "“20% hike on ₹6,00,000, per month?”"),
+    ])
     presets = {
         "Single call — weather": "What's the weather in Gurugram today? Should I carry an umbrella?",
         "Sequential — stock in EUR": "What is Tesla's current stock price in EUR?",
@@ -279,13 +357,20 @@ with tabs[4]:
     }
     pick = st.radio("Example", list(presets), horizontal=True, key="m8_pick")
     q = st.text_input("Question", presets[pick], key=f"m8_q_{pick}")
-    enabled = st.multiselect("Tools available to the model", list(TOOL_IMPLS), default=list(TOOL_IMPLS), key="m8_tools")
+    c1, c2 = st.columns([3, 2])
+    enabled = c1.multiselect("Tools available to the model", list(TOOL_IMPLS), default=list(TOOL_IMPLS), key="m8_tools",
+                             help="Remove a tool and the model can no longer use it — ask a question that needs it and see what happens.")
+    fc_mode = c2.radio("Tool mode", ["AUTO", "ANY", "NONE"], horizontal=True, key="m8_mode",
+                       help="AUTO: model decides · ANY: model must call a tool · NONE: model must answer in text")
+    st.caption({"AUTO": "**AUTO** — the model decides whether a tool is needed (normal behaviour).",
+                "ANY": "**ANY** — the model is *forced* to call a tool in round 1 (even for 'hello'); from round 2 the app switches to AUTO so it can answer.",
+                "NONE": "**NONE** — tools are visible but the model may not call them, so live data will be guessed."}[fc_mode])
     with st.expander("Tool cards sent to Gemini"):
         st.json([c for c in TOOL_CARDS if c["name"] in enabled])
     if st.button("Run the function-calling loop", type="primary", disabled=not llm_ready(False)):
         with st.spinner("Running…"):
             try:
-                st.session_state.m8_trace = run_tool_loop(q, enabled)
+                st.session_state.m8_trace = run_tool_loop(q, enabled, mode=fc_mode)
             except Exception as e:  # noqa: BLE001
                 from core.llm import friendly_error
                 st.session_state.m8_trace = None
@@ -319,8 +404,169 @@ while True:
 
 # ---------------------------------------------------------------------------
 with tabs[5]:
-    st.subheader("`3_weatherSearchaddingLLM.py` — what works and what to fix")
+    st.subheader("Tool options explained — every setting, in plain words")
     show_dg("m8:5")
+    st.markdown("When you give Gemini tools there are **four decisions** to make. Each one is a different knob:")
+    mdtable(["#", "Decision", "Where you set it", "Options"], [
+        ("1", "**Which tools exist?**", "`config.tools=[...]`", "Your own functions · Google Search · Code execution · URL context"),
+        ("2", "**How is each tool described?**", "the *tool card* (`FunctionDeclaration`)", "name · description · parameter types · required · enum"),
+        ("3", "**May / must / must not the model call a tool?**", "`config.tool_config.function_calling_config.mode`", "`AUTO` · `ANY` · `NONE` (+ `allowed_function_names`)"),
+        ("4", "**Who runs the function and loops?**", "`automatic_function_calling`", "Automatic (SDK does it) · Manual (you write the loop)"),
+    ])
+
+    o_tabs = st.tabs(["① Kinds of tools", "② The tool card fields", "③ AUTO / ANY / NONE", "④ Automatic vs manual", "⑤ One, many, or chained calls"])
+
+    with o_tabs[0]:
+        mdtable(["Tool kind", "What it is", "Who executes it", "Use it for", "How to switch it on"], [
+            ("**Function declaration** (your own tool)", "A tool card + a Python function you wrote", "**Your code**", "Your database, internal APIs, weather/stock/FX, booking, anything custom",
+             "`types.Tool(function_declarations=[card])`"),
+            ("**Google Search** (grounding)", "Gemini searches the web and cites sources", "**Google** (inside the API call)", "Fresh news and facts, with links", "`types.Tool(google_search=types.GoogleSearch())`"),
+            ("**Code execution**", "The model writes and runs Python in a sandbox", "**Google's sandbox**", "Exact maths, data analysis, small charts", "`types.Tool(code_execution=types.ToolCodeExecution())`"),
+            ("**URL context**", "The model reads the pages whose URLs you give", "**Google**", "“Summarise this article / compare these two pages”", "`types.Tool(url_context=types.UrlContext())`"),
+        ])
+        st.caption("Availability, quotas and whether built-in tools can be combined with your own functions depend on the model and your plan — "
+                   "if a call errors, the message will say so. Check the current Gemini API docs for the latest rules.")
+        st.markdown("###### ✏️ Try a built-in tool: Google Search grounding")
+        code_lab("m8_search_tool", '''resp = client.models.generate_content(
+    model=MODEL,
+    contents="What is the latest stable version of Python? Answer in one line.",
+    config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
+)
+print(resp.text)
+
+# Sources the model used (if any):
+meta = resp.candidates[0].grounding_metadata
+for chunk in (meta.grounding_chunks or []) if meta else []:
+    print("-", chunk.web.title, chunk.web.uri)''', title="Google Search tool",
+                 note="If your plan or model does not allow this tool you will see the API's error message — that is itself a lesson.")
+        st.markdown("###### ✏️ Try a built-in tool: code execution")
+        code_lab("m8_code_tool", '''resp = client.models.generate_content(
+    model=MODEL,
+    contents="What is the sum of the first 50 prime numbers? Use code to be exact.",
+    config=types.GenerateContentConfig(tools=[types.Tool(code_execution=types.ToolCodeExecution())]),
+)
+for part in resp.candidates[0].content.parts:
+    if part.executable_code:
+        print("CODE THE MODEL WROTE:\\n", part.executable_code.code)
+    if part.code_execution_result:
+        print("RESULT:", part.code_execution_result.output)
+    if part.text:
+        print("ANSWER:", part.text)''', title="code execution tool")
+
+    with o_tabs[1]:
+        st.markdown("A **tool card** has four parts. Gemini reads *only* this card — never your Python code.")
+        mdtable(["Field", "What to write", "Good example", "Bad example"], [
+            ("`name`", "A short verb-noun identifier, no spaces", "`get_weather_info`", "`weather tool 1`"),
+            ("`description`", "**What it does and when to use it** — this is how the model chooses between tools", "“Fetches current weather for a city. Use when the user asks about temperature, rain or whether to carry an umbrella.”", "“weather”"),
+            ("`parameters.properties`", "Each input: `type` + `description` (format, example)", "`city: STRING — City name, e.g. Gurugram`", "`x: STRING`"),
+            ("`parameters.required`", "Inputs the model **must** supply", "`[\"city\"]`", "(empty — model may call with nothing)"),
+        ])
+        mdtable(["Parameter feature", "Meaning", "Example"], [
+            ("`type`", "`STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `ARRAY`, `OBJECT`", "`\"type\": \"INTEGER\"`"),
+            ("`enum`", "Only these values are allowed — great for fixed choices", "`\"enum\": [\"celsius\", \"fahrenheit\"]`"),
+            ("`description`", "Tells the model the format and gives an example", "`\"YYYY-MM-DD, optional\"`"),
+            ("`items`", "The element type of an `ARRAY`", "`\"items\": {\"type\": \"STRING\"}`"),
+            ("nested `OBJECT`", "A parameter that is itself a group of fields", "address → {street, city}"),
+        ])
+        st.markdown("###### ✏️ A richer tool card — edit the card and see what the model returns")
+        code_lab("m8_card_code", '''card = types.FunctionDeclaration(
+    name="get_weather_info",
+    description="Fetches current weather for a city. Use when the user asks about temperature, rain or what to wear.",
+    parameters={
+        "type": "OBJECT",
+        "properties": {
+            "city": {"type": "STRING", "description": "City name, e.g. Gurugram"},
+            "unit": {"type": "STRING", "enum": ["celsius", "fahrenheit"], "description": "Temperature unit"},
+        },
+        "required": ["city"],
+    },
+)
+resp = client.models.generate_content(
+    model=MODEL,
+    contents="Is it hot in Delhi right now? Give me the temperature in fahrenheit.",
+    config=types.GenerateContentConfig(tools=[types.Tool(function_declarations=[card])]),
+)
+for fc in resp.function_calls or []:
+    print("The model asks to call:", fc.name, dict(fc.args))      # YOU would now run the function
+if not resp.function_calls:
+    print("No tool call:", resp.text)''', title="tool card with an enum")
+
+    with o_tabs[2]:
+        st.markdown("`mode` decides **whether the model may, must or must not** call a function:")
+        mdtable(["Mode", "What the model does", "Use it when", "Watch out"], [
+            ("**`AUTO`** (default)", "Decides itself: call a tool **or** just answer", "Normal assistants — most cases", "It may answer from memory when you wanted a tool"),
+            ("**`ANY`**", "**Must** call a function (any, or one from `allowed_function_names`)", "You always want structured output or a guaranteed lookup", "It can never answer in plain text — after the tool result switch back to `AUTO` or you loop forever"),
+            ("**`NONE`**", "**Must not** call any function — answers in text", "Temporarily disable tools; tests; final summarising step", "It will guess any live data from memory"),
+        ])
+        mdtable(["Option", "Meaning"], [
+            ("`allowed_function_names=[\"a\", \"b\"]`", "Narrow the choice to these tools (used with `ANY`) — e.g. force it to pick between `get_weather_info` and `calculate`"),
+        ])
+        st.markdown("###### ✏️ Change the mode and watch the behaviour change")
+        code_lab("m8_mode_code", '''def get_weather_info(city: str) -> dict:
+    """Current weather for a city."""
+    return {"city": city, "temp": "30 C"}
+
+card = types.FunctionDeclaration(
+    name="get_weather_info",
+    description="Current weather for a city. Use for any weather question.",
+    parameters={"type": "OBJECT", "properties": {"city": {"type": "STRING", "description": "City name"}}, "required": ["city"]},
+)
+
+for mode in ["AUTO", "ANY", "NONE"]:                      # try other questions too
+    resp = client.models.generate_content(
+        model=MODEL,
+        contents="Say hello in one short sentence.",     # NOT a weather question
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(function_declarations=[card])],
+            tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode=mode)),
+        ),
+    )
+    called = [fc.name for fc in (resp.function_calls or [])]
+    print(f"{mode:5} -> tool calls: {called or 'none'}  | text: {(resp.text or '')[:50]!r}")''', title="function_calling_config.mode",
+                 note="3 model calls. Expect: AUTO answers in text, ANY is forced to call the weather tool even for 'hello', NONE answers in text.")
+
+    with o_tabs[3]:
+        mdtable(["", "Automatic (SDK runs the loop)", "Manual (you run the loop)"], [
+            ("You pass", "A **Python function** itself: `tools=[get_weather]`", "A **card** (`FunctionDeclaration`) + your own dispatch code"),
+            ("Who calls your function", "The SDK, automatically", "Your `while` loop"),
+            ("Who sends the result back", "The SDK", "You (`Part.from_function_response`)"),
+            ("Good for", "Quick prototypes, simple tools", "Production: validation, timeouts, logging, permissions, error handling"),
+            ("Control", "Low — it just works", "Full — you see and decide every step"),
+        ])
+        st.markdown("###### ✏️ Automatic function calling: just pass the function")
+        code_lab("m8_auto_fc", '''def get_weather(city: str) -> dict:
+    """Returns the current weather for a city.
+
+    Args:
+        city: City name, e.g. Pune.
+    """
+    return {"city": city, "temperature_c": 29, "condition": "partly cloudy"}
+
+resp = client.models.generate_content(
+    model=MODEL,
+    contents="Should I carry an umbrella in Pune today?",
+    config=types.GenerateContentConfig(tools=[get_weather]),     # the SDK reads the docstring + type hints as the card
+)
+print(resp.text)                                                  # final answer; the SDK already ran get_weather()
+
+# To switch it off and do the loop yourself, add:
+#   automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)''', title="automatic function calling",
+                 note="The docstring and type hints become the tool card — so write them well.")
+
+    with o_tabs[4]:
+        mdtable(["Pattern", "What happens", "Example question", "How you handle it"], [
+            ("**No call**", "Model answers from its own knowledge", "“What is a function call?”", "Return `resp.text`"),
+            ("**Single call**", "One tool, then the answer", "“Weather in Gurugram?”", "Run it, send result, get answer"),
+            ("**Parallel calls**", "Several *independent* calls in **one** turn", "“Weather in Manali **and** Goa; convert 500 USD to INR”", "Loop over `resp.function_calls`; run them (can be concurrent); send **all** results back together"),
+            ("**Sequential (chained)**", "Call B needs the output of call A → different rounds", "“Tesla price **in EUR**” (stock → then convert)", "Keep looping until the model stops asking for tools"),
+        ])
+        st.info("Tip: in the **🟢 Live tool loop** tab, try *Parallel — trip check* (several calls in one round) and "
+                "*Sequential — stock in EUR* (one call per round) and watch the round numbers.")
+
+with tabs[6]:
+    st.subheader("`3_weatherSearchaddingLLM.py` — what works and what to fix")
+    show_dg("m8:6")
+    weather_key_box("script")
     st.markdown("Your script correctly defines a tool card, passes it via `types.Tool(function_declarations=[...])`, and reads "
                 "`function_call.name` / `.args`. Five things to improve:")
     fixes = [
@@ -440,9 +686,9 @@ FALLBACKS = {"weather": {"temperature": "N/A", "condition": "Data unavailable", 
              "hotels": {"suggestions": ["Popular pick: Hotel Manali Heights"], "source": "static default"},
              "currency": {"USD": "~83 INR", "source": "cached rate"}}
 
-with tabs[6]:
+with tabs[7]:
     st.subheader("Fan-out, fan-in: call independent tools at the same time")
-    show_dg("m8:6")
+    show_dg("m8:7")
     st.markdown("“Plan a trip to Manali: weather, hotels and USD→INR rate.” The three calls don't depend on each other, so the "
                 "backend fires them **concurrently** (`asyncio.gather`) and waits only for the slowest.")
     compare("Use async when…", "2+ **independent** I/O-bound API calls · user-facing latency matters · you want partial results early",
@@ -477,9 +723,9 @@ with tabs[6]:
         st.markdown("**Aggregated payload sent back to the LLM (fan-in):**")
         st.json(par[1])
 
-with tabs[7]:
+with tabs[8]:
     st.subheader("More tools, more failure points — fail at the tool level, not the app level")
-    show_dg("m8:7")
+    show_dg("m8:8")
     principles = [
         ("1 · Isolate failures", "Wrap each call in try/except; return `{\"error\": ...}` for that tool, keep the others."),
         ("2 · Timeouts, aggressively", "Per-request and overall timeouts — never trust an external API to be fast."),
@@ -498,7 +744,7 @@ with tabs[7]:
 
 
 # ---------------------------------------------------------------------------
-with tabs[8]:
+with tabs[9]:
     takeaway([
         "Tools overcome knowledge cutoff: retrieval (eyes), computation (calculator), action (hands).",
         "A tool card = name + description + parameter schema (+ output structure); your function is the engine.",
@@ -508,7 +754,7 @@ with tabs[8]:
     ])
 
 
-with tabs[9]:
+with tabs[10]:
     quiz("m8", [
         {"q": "Who actually executes the function in function calling?", "options": ["The LLM", "Your backend code", "The user", "The API key"],
          "answer": 1, "why": "The model only suggests a structured call."},
