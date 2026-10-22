@@ -1,4 +1,4 @@
-message_text,label,intent_type,flag_reason
+﻿message_text,label,intent_type,flag_reason
 Reminder: Your gas cylinder booking is confirmed.,Not Scam,Service Reminder,Legitimate communication
 Power cut scheduled from 2 PM to 4 PM tomorrow.,Not Scam,Informational Alert,Legitimate communication
 Act now! Your bank account is under threat.,Scam,Urgency,Identified as Urgency

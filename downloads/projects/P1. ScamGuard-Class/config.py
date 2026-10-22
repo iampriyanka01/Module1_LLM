@@ -14,10 +14,10 @@ PROJECT_ROOT = Path(__file__).parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 # API Configuration
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")  # from .env / Colab Secrets - never hard-code
+GEMINI_API_KEY = "AIzaSyDMF2ZzaQ7rzBeVKCvP4ulo1jxKxplckRM"
 
 # LLM Settings
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # e.g. gemini-3.5-flash-lite
+DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
