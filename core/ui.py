@@ -20,6 +20,9 @@ MODULES = {
     "m7": "7 · Conversational Interfaces",
     "m8": "8 · Function Calling & Tools",
     "m9": "9 · Evaluating GenAI Outputs",
+    "m10": "10 · Project: ScamGuard AI",
+    "m11": "11 · Projects: CineMate & Cinema Advisor",
+    "m12": "⬇️ Downloads & API keys",
 }
 
 

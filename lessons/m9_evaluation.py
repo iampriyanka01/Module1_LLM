@@ -10,7 +10,7 @@ import streamlit as st
 from core.course_prompts import EVALUATOR_SYSTEM_PROMPT, STUDY_BUDDY_SYSTEM_PROMPT, safe_parse_json
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call, response_text,
                       run_live)
-from core.ui import analogy, cards, compare, definition, diagram, page_header, quiz, stepper, takeaway
+from core.ui import analogy, cards, compare, definition, diagram, mdtable, page_header, quiz, stepper, takeaway
 from core.diagrams import show_dg
 
 page_header(
@@ -140,7 +140,34 @@ def ngrams(tokens, n):
 with tabs[3]:
     st.subheader("Classic metrics — great for yes/no and numbers")
     show_dg("m9:3")
+    definition("Metric", "a **number that summarises how good an output is**, computed by a fixed rule. The same input always gives the same score, "
+               "so you can compare two prompts, two models, or yesterday vs today.")
+    st.markdown("**Two families, and when each one fits**")
+    mdtable(["Family", "The model's output is…", "Compare it to…", "Metrics here", "Example"], [
+        ("Classification", "a label (spam / not spam, Scam / Not Scam)", "the true label", "Accuracy, Precision, Recall, F1", "Spam filter, ScamGuard"),
+        ("Regression", "a number", "the true number", "MAE, RMSE", "House-price prediction"),
+        ("Text overlap", "free text", "a human-written reference text", "BLEU, ROUGE, METEOR", "Translation, summaries"),
+    ])
+    st.markdown("#### Every term, defined")
+    mdtable(["Term", "Plain-English definition", "Formula", "Think of it as…"], [
+        ("**TP** (true positive)", "Model said **yes** and it really was yes", "count", "Spam correctly sent to spam"),
+        ("**FP** (false positive)", "Model said **yes** but it was no — a *false alarm*", "count", "A good e-mail wrongly sent to spam"),
+        ("**FN** (false negative)", "Model said **no** but it was yes — a *miss*", "count", "Spam that reached your inbox"),
+        ("**TN** (true negative)", "Model said **no** and it really was no", "count", "Good e-mail correctly kept"),
+        ("**Accuracy**", "Share of *all* answers that were right", "(TP + TN) ÷ total", "Overall exam score"),
+        ("**Precision**", "When the model says yes, how often is it right? Low precision = many false alarms", "TP ÷ (TP + FP)", "“Can I trust a flag?”"),
+        ("**Recall**", "Of all the real yes cases, how many did it find? Low recall = many misses", "TP ÷ (TP + FN)", "“Did it catch them all?”"),
+        ("**F1**", "One score balancing precision and recall (the harmonic mean — it is low if *either* is low)", "2·P·R ÷ (P + R)", "Single headline number"),
+        ("**BLEU**", "How many of the model's words/phrases (n-grams) also appear in the reference", "overlap of 1-,2-,3-,4-word chunks, with a brevity penalty", "Word-matching checker"),
+        ("**ROUGE**", "How much of the *reference's* content the model covered (recall-style)", "overlap ÷ words in reference", "“Did the summary mention the key points?”"),
+        ("**METEOR**", "Like BLEU but also counts stems and synonyms (“run” ≈ “running”)", "weighted match score", "Forgiving word-matcher"),
+        ("**MAE** (mean absolute error)", "Average size of the miss, ignoring direction", "mean(|predicted − actual|)", "“Off by 3 lakh on average”"),
+        ("**RMSE** (root mean squared error)", "Like MAE, but big misses count much more", "√ mean((predicted − actual)²)", "Penalises disasters"),
+    ])
+    st.caption("Which one to optimise? **Missing a scam is worse than a false alarm → push recall.** Annoying users with false alarms is worse → push precision. "
+               "Unsure → watch F1.")
     st.markdown("#### Confusion matrix → accuracy, precision, recall, F1 (spam filter)")
+    st.caption("Change the four counts and watch every metric move. Hover the metric names for a one-line definition.")
     c1, c2 = st.columns(2)
     with c1:
         tp = st.number_input("TP — spam caught", 0, 10000, 5)
@@ -160,11 +187,16 @@ with tabs[3]:
     m[1].metric("Precision", f"{prec:.1%}", help="TP/(TP+FP) — of everything flagged, how much was really spam? (avoid false alarms)")
     m[2].metric("Recall", f"{rec:.1%}", help="TP/(TP+FN) — of all real spam, how much did we catch? (avoid misses)")
     m[3].metric("F1", f"{f1:.2f}", help="Harmonic mean of precision and recall")
+    st.markdown(f"**How to read your numbers:** out of **{tp + fn}** real spam e-mails the filter caught **{tp}** (recall **{rec:.0%}**). "
+                f"Of the **{tp + fp}** e-mails it flagged, **{tp}** were really spam (precision **{prec:.0%}**). "
+                f"Overall it was right on **{tp + tn}** of **{total}** (accuracy **{acc:.0%}**). F1 **{f1:.2f}** blends precision and recall into one number (1.0 = perfect).")
     if st.button("Show the accuracy paradox"):
         st.warning("99 normal emails + 1 spam, and a lazy model that always says “Not spam”: accuracy **99%**, recall **0%**. "
                    "Accuracy misleads when one class is rare.")
 
     st.markdown("#### BLEU-style word overlap — and why it fails for LLMs")
+    st.caption("**Unigram precision** = share of the model's single words found in the reference. **Bigram precision** = same for two-word pairs. "
+               "**BLEU-2** combines them and punishes outputs that are too short. 1.00 = identical wording.")
     ref = st.text_input("Human reference", "The cat sat on the mat")
     cand = st.text_input("Model output", "Kitty rested on the floor rug")
     rt, ct = ref.lower().split(), cand.lower().split()
@@ -183,6 +215,7 @@ with tabs[3]:
                "compare to a reference — but a creative poem has no single reference, and none of them checks truth.")
 
     st.markdown("#### Regression metrics — MAE vs RMSE (house prices, ₹ lakh)")
+    st.caption("Edit the table. **MAE** = average miss. **RMSE** squares each miss first, so one big error (e.g. 80 predicted as 50) raises RMSE far more than MAE.")
     errs = st.data_editor(pd.DataFrame({"actual": [51.0, 29.5, 80.0, 45.0], "predicted": [50.0, 30.0, 70.0, 45.5]}), key="m9_reg")
     diff = errs["predicted"] - errs["actual"]
     c1, c2 = st.columns(2)
@@ -197,6 +230,20 @@ KYOTO_SPOTS = {"Fushimi Inari Shrine", "Kinkaku-ji", "Kiyomizu-dera", "Arashiyam
 with tabs[4]:
     st.subheader("Three tiers: automated signals → human judgment → aggregate decision")
     show_dg("m9:4")
+    definition("Metric layering", "combining **cheap automatic checks**, **human judgment** and a **weighted final decision** — because no single metric "
+               "can judge an LLM answer. Each layer catches what the previous one cannot.")
+    analogy("Hospital triage: a **machine** checks vital signs on everyone (fast, objective, shallow) → a **doctor** examines the ones who need it "
+            "(slow, nuanced) → a **committee** decides policy from the patterns (weighs everything).", title="Real-life analogy")
+    mdtable(["Tier", "What it is", "Who does it", "Speed / cost", "Catches", "Misses"], [
+        ("**1 · Automated signals**", "Rules a program can check: valid JSON, right city, no repeats, no time clashes, length limits, BLEU/ROUGE if a reference exists",
+         "Code", "Instant, almost free — run on **every** output", "Structure errors, wrong facts you can look up, formatting", "Tone, helpfulness, creativity, subtle untruths"),
+        ("**2 · Human (or LLM-judge) judgment**", "Rating on a rubric: intent fit, engagement, cultural sensitivity, novelty (1–5 each)",
+         "Reviewers or an LLM-as-judge", "Slow, costly — **sample** 5–10 %", "Quality, nuance, appropriateness", "Doesn't scale; reviewers disagree"),
+        ("**3 · Aggregation & decision**", "A **weighted average** of Tier 1 and Tier 2 scores plus a rule (“ship if ≥ 4 and all automated checks pass”)",
+         "People deciding policy", "Dashboard / weekly review", "Overall trade-offs; trends over time", "Hides which part failed unless you keep the parts visible"),
+    ])
+    st.caption("How to use the demo below: **1)** edit the JSON and see Tier 1 react instantly · **2)** act as the reviewer with the four sliders · "
+               "**3)** choose how much each part counts and read the overall score. Overall = (automated × weight₁ + human × weight₂ + cultural × weight₃) ÷ total weight.")
     st.markdown("Example: an AI travel planner answers “Plan a 3-day trip to Kyoto focused on culture, temples and food.”")
     itinerary = {
         "days": [
@@ -452,3 +499,8 @@ with tabs[10]:
         {"q": "First step of the iterative refinement cycle?", "options": ["Edit the prompt", "Define target behaviour", "A/B test", "Fine-tune the model"],
          "answer": 1, "why": "You can't improve what you haven't defined."},
     ])
+
+
+from core import catalog  # noqa: E402
+
+catalog.module_downloads("m9")

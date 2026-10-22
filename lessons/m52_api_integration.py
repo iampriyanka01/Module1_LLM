@@ -66,16 +66,6 @@ with tabs[1]:
             'client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))\n```')
     st.markdown("**Also:** add `.env` to `.gitignore` · use separate **scoped keys** for dev/test/prod · restrict by **IP / domain / quota / expiry** · "
                 "**rotate** keys · use a secret manager in production.")
-    st.markdown("#### 🔍 Spot the leak — a real snippet from the weather exercise")
-    st.code('GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")\nprint("Gemini key:", GEMINI_API_KEY)\n'
-            'OPENWEATHER_API_KEY = os.getenv("WEATHER_API_KEY")\nprint("Weather key:", OPENWEATHER_API_KEY)', language="python")
-    ans = st.radio("Is this safe?", ["Yes — the key comes from .env", "No — printing the key leaks it"], index=None, key="m52_leak")
-    if ans:
-        if ans.startswith("No"):
-            st.success("Right. Terminal output ends up in screenshots, logs and screen-shares. If you need to confirm loading, "
-                       "print `bool(key)` or the last 4 characters only: `print('key loaded:', key[-4:])`.")
-        else:
-            st.error("Loading from .env is good — but `print()` writes the full secret to the console, logs and screenshots.")
 
 with tabs[2]:
     st.subheader("Your first programmatic call")

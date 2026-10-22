@@ -218,6 +218,10 @@ with tabs[2]:
     show_dg("m8:2")
     st.markdown("**Name** (identity) · **Description** (when to use it) · **Parameters schema** (input blueprint) · "
                 "**Output structure** (expected result). Vague cards make the model guess — and guessing breaks apps.")
+    st.info("This card describes the **weather tool**. The card only *tells the model* the tool exists — the real call to "
+            "`api.openweathermap.org/data/2.5/weather` is made by your code and needs an **API key** from "
+            "[home.openweathermap.org/api_keys](https://home.openweathermap.org/api_keys). Get it and paste it below 👇", icon="🌦️")
+    weather_key_box("card")
     c1, c2 = st.columns(2)
     with c1:
         name = st.text_input("Name", "get_weather_info")
@@ -274,11 +278,24 @@ with tabs[3]:
         ("LLM writes the final answer", "The tool result goes back to the model, which turns JSON into language: "
                                         "“Gurugram is sunny with a high of 34°C… carry sunscreen!”"),
     ])
-    diagram("""
-digraph { rankdir=LR; node [shape=box style="rounded,filled" fontname="Helvetica"];
- U [label="User question" fillcolor="#f1f5f9"]; L1 [label="LLM\\n(chooses tool)" fillcolor="#dbeafe"]; J [label="function_call JSON" fillcolor="#fef9c3"];
- B [label="Your backend\\nruns Python / API" fillcolor="#dcfce7"]; R [label="function_response" fillcolor="#fef9c3"]; L2 [label="LLM\\n(final answer)" fillcolor="#dbeafe"];
- U->L1->J->B->R->L2; }""")
+    cur = st.session_state.get("step_fc_life", 0)
+    NODES = [("U", "1 · User question", ["U"]), ("L1", "2 · LLM\\nchooses the tool", ["L1"]), ("J", "3 · function_call\\nJSON (no code run)", ["J"]),
+             ("B", "4 · Your backend\\nruns Python / API", ["B"]), ("L2", "5 · LLM writes\\nthe final answer", ["R", "L2"])]
+    dot = ["digraph { rankdir=LR; nodesep=0.3; ranksep=0.4;"]
+    for k, (nid, lab, _) in enumerate(NODES):
+        if k < cur:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#bbf7d0"];')
+        elif k == cur:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#fb923c" color="#c2410c" penwidth=3 fontsize=15];')
+        else:
+            dot.append(f'{nid} [label="{lab}" fillcolor="#f1f5f9"];')
+    # the function_response hop is part of step 5 (the result travels back to the model)
+    rcol = "#fb923c" if cur == 4 else ("#bbf7d0" if cur > 4 else "#f1f5f9")
+    dot.append(f'R [label="function_response\\n(result back to LLM)" fillcolor="{rcol}" shape=note];')
+    dot.append("U->L1->J->B->R->L2; }")
+    st.markdown(f"**Where you are in the loop — step {cur + 1} of 5 is highlighted**")
+    diagram("\n".join(dot), max_w=10, max_h=3.2)
+    st.caption("🟧 current step · 🟩 already done · ⬜ still to come. Use Back / Next above to move along the diagram.")
 
 # ---------------------------------------------------------------------------
 def run_tool_loop(question: str, enabled: list[str], max_rounds: int = 5, mode: str = "AUTO"):
@@ -567,22 +584,6 @@ with tabs[6]:
     st.subheader("`3_weatherSearchaddingLLM.py` — what works and what to fix")
     show_dg("m8:6")
     weather_key_box("script")
-    st.markdown("Your script correctly defines a tool card, passes it via `types.Tool(function_declarations=[...])`, and reads "
-                "`function_call.name` / `.args`. Five things to improve:")
-    fixes = [
-        ("1 · Secrets printed", "`print(\"Gemini key:\", GEMINI_API_KEY)` leaks both keys to the console/logs.", "Print `bool(key)` or nothing."),
-        ("2 · Crash when no tool is called", "`first_part.function_call.name` raises `AttributeError` if the model answers in text.",
-         "Check `if response.function_calls:` first."),
-        ("3 · Loop never closes", "The temperature is printed by your own f-string; the result is **never sent back** to the LLM, so it "
-                                  "can't write a grounded, conversational answer (“carry an umbrella?”).", "Append `Part.from_function_response` and call the model again."),
-        ("4 · Card ≠ implementation", "The card promises *forecast* + optional `date`, but the function ignores date and returns only temp.",
-         "Make the description match what the function really does, or implement date."),
-        ("5 · No timeout / error isolation", "`requests.get(url)` can hang; an exception kills the script.",
-         "`timeout=8`, try/except, return `{\"error\": ...}` to the LLM."),
-    ]
-    for t, prob, fix in fixes:
-        with st.container(border=True):
-            st.markdown(f"**{t}** — {prob}  \n✅ *Fix:* {fix}")
     st.markdown("#### Improved version")
     st.code('''from google import genai
 from google.genai import types
@@ -766,3 +767,8 @@ with tabs[10]:
          "Return partial results and explain hotels are unavailable", "Retry forever", "Hide the failure"], "answer": 1,
          "why": "Isolate failures and communicate them clearly."},
     ])
+
+
+from core import catalog  # noqa: E402
+
+catalog.module_downloads("m8")

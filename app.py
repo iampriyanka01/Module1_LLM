@@ -4,7 +4,7 @@ GenAI Learning Hub
 An interactive Streamlit course companion covering:
   1 Foundations of GenAI · 2 GenAI Platforms · 3 Prompt basics · 4 Advanced prompting
   5.1 APIs · 5.2 LLM API integration · 6 Response handling · 7 Conversational interfaces
-  8 Function calling · 9 Evaluating outputs
+  8 Function calling · 9 Evaluating outputs · 10-11 Projects · Downloads & API keys
 
 Run:
     pip install -r requirements.txt
@@ -69,6 +69,13 @@ pages = {
         st.Page(P + "m7_conversational.py", title="7 · Conversational Interfaces", icon="💬"),
         st.Page(P + "m8_function_calling.py", title="8 · Function Calling & Tools", icon="🛠️"),
         st.Page(P + "m9_evaluation.py", title="9 · Evaluating GenAI Outputs", icon="📏"),
+    ],
+    "Projects": [
+        st.Page(P + "m10_scamguard.py", title="10 · ScamGuard AI", icon="🛡️"),
+        st.Page(P + "m11_cinemate.py", title="11 · CineMate & Cinema Advisor", icon="🎬"),
+    ],
+    "Resources": [
+        st.Page(P + "m12_downloads.py", title="Downloads & API keys", icon="⬇️"),
     ],
 }
 

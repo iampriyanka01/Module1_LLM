@@ -68,19 +68,17 @@ with tabs[1]:
     ]
     st.dataframe(pd.DataFrame(caps, columns=["Capability", "What it does", "HR example"]), hide_index=True, width="stretch")
     st.markdown("#### “Hello World” with LangChain + Gemini")
-    st.code("""# pip install langchain-google-genai langchain-core python-dotenv
+    st.caption("In your own project the key comes from `.env`; here `API_KEY` and `MODEL` are filled in for you. Edit the prompt (or the rate limit) and press Run.")
+    code_lab("m6_langchain_hello", """# pip install langchain-google-genai langchain-core python-dotenv
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
 # At most 4 model calls a minute (the free tier allows 5), shared by every agent in this notebook
 limiter = InMemoryRateLimiter(requests_per_second=4 / 60, check_every_n_seconds=0.5, max_bucket_size=1)
-llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", google_api_key=os.getenv("GOOGLE_API_KEY"),
-                             rate_limiter=limiter)
-response = llm.invoke("Explain quantum computing in simple terms")   # .invoke() = run once, one input → one output
-print(response.content)""", language="python", wrap_lines=True)
+llm = ChatGoogleGenerativeAI(model=MODEL, google_api_key=API_KEY, rate_limiter=limiter)
+
+response = llm.invoke("Explain quantum computing in simple terms")   # .invoke() = run once, one input -> one output
+print(response.content)""", title="LangChain + Gemini hello world", height=300)
 
 # ---------------------------------------------------------------------------
 with tabs[2]:
@@ -760,3 +758,8 @@ with tabs[8]:
         {"q": "Which guardrail component only flags problems?", "options": ["Checker", "Corrector", "Rail", "Guard"], "answer": 0,
          "why": "The Checker is the watchdog; the Corrector fixes."},
     ])
+
+
+from core import catalog  # noqa: E402
+
+catalog.module_downloads("m6")

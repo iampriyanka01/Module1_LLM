@@ -11,9 +11,10 @@ st.markdown(
 )
 
 c1, c2, c3 = st.columns(3)
-c1.metric("Modules", len(MODULES))
-done = [k for k in MODULES if module_score(k) is not None]
-c2.metric("Quizzes attempted", f"{len(done)} / {len(MODULES)}")
+QUIZ_MODS = [k for k in MODULES if k != "m12"]
+c1.metric("Modules", len(QUIZ_MODS))
+done = [k for k in QUIZ_MODS if module_score(k) is not None]
+c2.metric("Quizzes attempted", f"{len(done)} / {len(QUIZ_MODS)}")
 c3.metric("Live demos", "On" if get_api_key() else "Off", help=f"Model: {get_model()}. Add a Gemini key in the sidebar to turn live demos on.")
 
 st.subheader("🗺️ The learning path")
@@ -30,6 +31,9 @@ path = [
     ("m7", "💬", "Chat roles, system prompts, 'memory' illusion, context window strategies."),
     ("m8", "🛠️", "Tools, tool cards, the function-calling loop, multi & async calls, fallbacks."),
     ("m9", "📏", "Hallucinations, model quirks, metrics, rubrics, LLM-as-judge, refinement loop."),
+    ("m10", "🛡️", "Project: ScamGuard AI — prompt strategies, parser/validator, evaluation, Colab notebook."),
+    ("m11", "🎬", "Projects: CineMate (tool-calling agent) and Cinema Advisor (structured output + judge)."),
+    ("m12", "⬇️", "Download every script, notebook, project and note; full guide to API keys & secrets."),
 ]
 cols = st.columns(2)
 for i, (key, icon, desc) in enumerate(path):
@@ -39,17 +43,6 @@ for i, (key, icon, desc) in enumerate(path):
             badge = f" · quiz best **{score:.0%}**" if score is not None else ""
             st.markdown(f"**{icon} {MODULES[key]}**{badge}")
             st.caption(desc)
-
-st.subheader("🧪 Your own course projects are inside")
-st.markdown(
-    """
-| Your file | Where it lives in this app | What was added |
-|---|---|---|
-| `chatbot_app.py` (auto-summary chatbot) | **7 · Conversational Interfaces → Summarization** | Visual token savings, and the summary is fed back as context |
-| `3_weatherSearchaddingLLM.py` (weather tool) | **8 · Function Calling → Live tool loop** | Full loop: tool call → your function → result back to Gemini → final answer |
-| `study_buddy.py` + `evaluator.py` + `prompts.py` | **9 · Evaluating Outputs → LLM-as-judge** | Same prompts and `safe_parse_json`, with score charts |
-"""
-)
 
 with st.expander("▶️ How to run live demos"):
     st.markdown(

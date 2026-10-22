@@ -38,3 +38,11 @@ core/sim.py             offline simulators (sampling, toy tokenizer, token estim
 core/course_prompts.py  Study Buddy + Evaluator prompts and safe_parse_json (from the course project)
 lessons/*.py            one page per module
 ```
+
+## Projects, notebooks and downloads (new)
+
+* **10 · ScamGuard AI** and **11 · CineMate & Cinema Advisor** are project lessons built from the class code.
+* **Downloads & API keys** (last page) describes every file and offers download buttons, Colab notebooks and a guide to storing API keys safely.
+* `downloads/` holds key-free copies of all scripts, projects, notes and 7 Colab notebooks. Rebuild with
+  `python tools/build_assets.py <Module1_Code folder>` then `python tools/build_notebooks.py`.
+* **Never commit `.env` or `.streamlit/secrets.toml`.**

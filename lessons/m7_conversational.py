@@ -5,6 +5,7 @@ from collections import Counter
 
 import pandas as pd
 import streamlit as st
+from core import catalog
 
 from core import sim
 from core.llm import (call_with_retry, friendly_error, generate, get_client, get_model, llm_ready, log_call,
@@ -379,6 +380,8 @@ for turn in range(1, 13):
 
 # ---------------------------------------------------------------------------
 with tabs[6]:
+    catalog.run_elsewhere_box("notebooks/M7_auto_summary_chatbot.ipynb", "m7_chatbot", "scripts/m7_auto_summary_chatbot_app.py",
+                              "Download this chatbot and run it in Google Colab")
     st.subheader("Your `chatbot_app.py` — upgraded")
     show_dg("m7:6")
     st.markdown("Your app summarised the conversation every 5 user turns and showed it in the sidebar. Here the same idea "
@@ -551,3 +554,8 @@ with tabs[9]:
         {"q": "Summarizing old turns mainly saves…", "options": ["Accuracy", "Tokens (and cost) while keeping intent", "API keys", "Latency to zero"],
          "answer": 1, "why": "Hundreds of tokens of backstory become a short summary."},
     ])
+
+
+from core import catalog  # noqa: E402
+
+catalog.module_downloads("m7")
